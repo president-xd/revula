@@ -1,0 +1,37 @@
+# Core MCP + analysis (always installed)
+mcp>=1.0.0
+capstone>=5.0.0
+lief>=0.14.0
+pefile>=2023.2.7
+pyelftools>=0.30
+yara-python>=4.3.0
+
+# Optional — dynamic instrumentation
+frida-tools>=12.0.0
+frida>=16.0.0
+
+# Optional — radare2 bindings
+r2pipe>=1.8.0
+
+# Optional — network analysis
+scapy>=2.5.0
+
+# Optional — fuzzy hashing / crypto
+python-tlsh>=4.5.0
+ppdeep>=1.1          # pure-Python ssdeep alternative (ssdeep C-ext breaks on Python 3.13)
+
+# Optional — Android
+androguard>=3.4.0a1
+
+# Optional — Python bytecode decompilation
+uncompyle6>=3.9.0
+
+# Optional — FLARE tools (also provide CLI commands: floss, capa)
+flare-floss>=3.0.0
+flare-capa>=7.0.0
+
+# NOTE: angr (>=9.2.0) is NOT listed here because it's ~2 GB.
+#   Install manually:  pip install angr
+#
+# NOTE: triton (binary analysis) is NOT available on PyPI.
+#   Build from source: https://github.com/JonathanSalwan/Triton
