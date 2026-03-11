@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "revula": {
+      "command": "revula",
+      "args": []
+    }
+  }
+}
