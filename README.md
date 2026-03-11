@@ -2,9 +2,9 @@
 
 **Production-grade MCP server for universal reverse engineering automation.**
 
-Connect Claude Desktop, MCP-compatible IDEs, or custom tooling to a complete reverse engineering backend. One server, every RE tool — orchestrated through the [Model Context Protocol](https://modelcontextprotocol.io/).
+Connect Claude Desktop, MCP-compatible IDEs, or custom tooling to a complete reverse engineering backend. One server, every RE tool, orchestrated through the [Model Context Protocol](https://modelcontextprotocol.io/).
 
-> **107 tools** · **15 categories** · **18,800+ LOC** · **161 tests** · Zero `shell=True` · Zero `eval()`
+> **107 tools** | **15 categories** | **18,800+ LOC** | **161 tests** | Zero `shell=True` | Zero `eval()`
 
 ---
 
@@ -39,92 +39,92 @@ Connect Claude Desktop, MCP-compatible IDEs, or custom tooling to a complete rev
 
 ## Features
 
-### 🔍 Static Analysis (8 tools)
-- **Binary Parsing** — PE/ELF/Mach-O via LIEF with hash computation, suspicious indicator detection
-- **Disassembly** — Multi-backend: Capstone (always available), radare2, objdump; x86/x64/ARM/MIPS/RISC-V
-- **String Extraction** — FLOSS integration, regex fallback, 17 classifier patterns (URLs, IPs, crypto, registry keys…)
-- **Entropy Analysis** — Shannon entropy with sliding window, per-section analysis, packing detection
-- **Symbol Extraction** — DWARF, PDB, LIEF universal; function prologue scanning for stripped binaries
-- **YARA Scanning** — Inline rules, file/directory rules, community rules support
-- **Capa Integration** — ATT&CK mapping, MBC behaviors, capability enumeration
-- **Decompilation** — Ghidra (headless), RetDec, Binary Ninja with caching
+### Static Analysis (8 tools)
+- **Binary Parsing:** PE/ELF/Mach-O via LIEF with hash computation and suspicious indicator detection
+- **Disassembly:** Multi-backend support including Capstone (always available), radare2, and objdump for x86/x64/ARM/MIPS/RISC-V
+- **String Extraction:** FLOSS integration, regex fallback, 17 classifier patterns (URLs, IPs, crypto, registry keys)
+- **Entropy Analysis:** Shannon entropy with sliding window, per-section analysis, and packing detection
+- **Symbol Extraction:** DWARF, PDB, LIEF universal; function prologue scanning for stripped binaries
+- **YARA Scanning:** Inline rules, file/directory rules, and community rules support
+- **Capa Integration:** ATT&CK mapping, MBC behaviors, capability enumeration
+- **Decompilation:** Ghidra (headless), RetDec, Binary Ninja with caching
 
-### 🐛 Dynamic Analysis (29 tools)
-- **GDB Adapter** — Full GDB/MI protocol: breakpoints, stepping, registers, memory, backtrace, heap
-- **LLDB Adapter** — Native SB API integration for macOS/Linux debugging
-- **Frida Adapter** — Spawn/attach, script injection, function interception, memory scan/dump, RPC exports
-- **Code Coverage** — DynamoRIO drcov, Frida Stalker block tracing, coverage analysis
+### Dynamic Analysis (29 tools)
+- **GDB Adapter:** Full GDB/MI protocol with breakpoints, stepping, registers, memory, backtrace, and heap inspection
+- **LLDB Adapter:** Native SB API integration for macOS/Linux debugging
+- **Frida Adapter:** Spawn/attach, script injection, function interception, memory scan/dump, and RPC exports
+- **Code Coverage:** DynamoRIO drcov, Frida Stalker block tracing, and coverage analysis
 
-### 📱 Android RE (24 tools)
-- **APK Parsing** — Manifest extraction, permission analysis, component enumeration, resource inspection
-- **DEX Analysis** — Class/method listing, bytecode stats, string extraction
-- **Decompilation** — jadx/apktool integration, smali disassembly/assembly/patching
-- **Native Binary Analysis** — ARM/AArch64 .so analysis with JNI detection
-- **Device Interaction** — ADB bridge with 12 actions (logcat, install, shell, dumpsys, screenshot…)
-- **Frida for Android** — Root bypass, crypto hooking, SSL pinning bypass, API tracing, memory dump
-- **Traffic Interception** — tcpdump/mitmproxy integration, SSL key extraction
-- **Repack & Sign** — APK rebuild with smali patches, zipalign + apksigner
-- **Security Scanners** — MobSF, Quark-Engine, Semgrep, manifest vulnerability detection
+### Android RE (24 tools)
+- **APK Parsing:** Manifest extraction, permission analysis, component enumeration, and resource inspection
+- **DEX Analysis:** Class/method listing, bytecode stats, and string extraction
+- **Decompilation:** jadx/apktool integration, smali disassembly/assembly/patching
+- **Native Binary Analysis:** ARM/AArch64 .so analysis with JNI detection
+- **Device Interaction:** ADB bridge with 12 actions (logcat, install, shell, dumpsys, screenshot)
+- **Frida for Android:** Root bypass, crypto hooking, SSL pinning bypass, API tracing, and memory dump
+- **Traffic Interception:** tcpdump/mitmproxy integration with SSL key extraction
+- **Repack and Sign:** APK rebuild with smali patches, zipalign + apksigner
+- **Security Scanners:** MobSF, Quark-Engine, Semgrep, and manifest vulnerability detection
 
-### 🖥️ Cross-Platform RE Tools (7 tools)
-- **Rizin/r2** — Automated analysis with 13 actions + binary diffing
-- **GDB Enhanced** — Heap analysis, ROP gadget finding, exploit helpers (pattern create/find, checksec)
-- **QEMU** — User-mode emulation (4 actions) and full system emulation (5 actions)
+### Cross-Platform RE Tools (7 tools)
+- **Rizin/r2:** Automated analysis with 13 actions and binary diffing
+- **GDB Enhanced:** Heap analysis, ROP gadget finding, exploit helpers (pattern create/find, checksec)
+- **QEMU:** User-mode emulation (4 actions) and full system emulation (5 actions)
 
-### 💥 Exploit Development (2 tools)
-- **Shellcode** — Generation, encoding, bad-char analysis, extraction, emulation testing
-- **Format String** — Offset calculation, write payload generation, GOT overwrite, address leaking
+### Exploit Development (2 tools)
+- **Shellcode:** Generation, encoding, bad-char analysis, extraction, and emulation testing
+- **Format String:** Offset calculation, write payload generation, GOT overwrite, and address leaking
 
-### 🕵️ Anti-Analysis (2 tools)
-- **Detection** — Scan for anti-debug, anti-VM, anti-tamper, and packing indicators
-- **Bypass Generation** — Frida/GDB/patch/LD_PRELOAD scripts for ptrace, IsDebuggerPresent, timing, VM checks
+### Anti-Analysis (2 tools)
+- **Detection:** Scan for anti-debug, anti-VM, anti-tamper, and packing indicators
+- **Bypass Generation:** Frida/GDB/patch/LD_PRELOAD scripts for ptrace, IsDebuggerPresent, timing, and VM checks
 
-### 🦠 Malware Analysis (4 tools)
-- **Triage** — Multi-hash, IoC extraction, suspicious import scoring, risk assessment
-- **Sandbox Queries** — VirusTotal, Hybrid Analysis, MalwareBazaar API integration
-- **YARA Generation** — Auto-generate YARA rules from binary artifacts
-- **Config Extraction** — C2 URLs, IPs, domains, encryption keys, mutexes
+### Malware Analysis (4 tools)
+- **Triage:** Multi-hash, IoC extraction, suspicious import scoring, and risk assessment
+- **Sandbox Queries:** VirusTotal, Hybrid Analysis, and MalwareBazaar API integration
+- **YARA Generation:** Auto-generate YARA rules from binary artifacts
+- **Config Extraction:** C2 URLs, IPs, domains, encryption keys, and mutexes
 
-### 🔌 Firmware RE (3 tools)
-- **Extraction** — binwalk scan/extract, entropy analysis, filesystem identification
-- **Vulnerability Scanning** — Hardcoded credentials, known CVEs, unsafe functions, weak crypto
-- **Base Address Detection** — String reference analysis for firmware base address recovery
+### Firmware RE (3 tools)
+- **Extraction:** binwalk scan/extract, entropy analysis, and filesystem identification
+- **Vulnerability Scanning:** Hardcoded credentials, known CVEs, unsafe functions, and weak crypto
+- **Base Address Detection:** String reference analysis for firmware base address recovery
 
-### 📡 Protocol RE (3 tools)
-- **PCAP Analysis** — tshark-based with 8 actions (summary, flows, DNS, HTTP, TLS, filter, export, IoC)
-- **Protocol Dissection** — Binary structure inference, field boundary detection, pattern analysis
-- **Protocol Fuzzing** — Mutation-based, boundary testing, field-specific, and template fuzzing
+### Protocol RE (3 tools)
+- **PCAP Analysis:** tshark-based with 8 actions (summary, flows, DNS, HTTP, TLS, filter, export, IoC)
+- **Protocol Dissection:** Binary structure inference, field boundary detection, and pattern analysis
+- **Protocol Fuzzing:** Mutation-based, boundary testing, field-specific, and template fuzzing
 
-### 📦 Unpacking (4 tools)
-- **Packer Detection** — UPX, Themida, VMProtect, ASPack, PECompact, MPRESS, and more
-- **UPX Unpacking** — Static unpacking with automatic backup
-- **Dynamic Unpacking** — Frida-based memory dump with OEP detection
-- **PE Rebuild** — Fix section alignments, imports, entry point after memory dump
+### Unpacking (4 tools)
+- **Packer Detection:** UPX, Themida, VMProtect, ASPack, PECompact, MPRESS, and more
+- **UPX Unpacking:** Static unpacking with automatic backup
+- **Dynamic Unpacking:** Frida-based memory dump with OEP detection
+- **PE Rebuild:** Fix section alignments, imports, and entry point after memory dump
 
-### 🔓 Deobfuscation (3 tools)
-- **String Deobfuscation** — XOR brute force, ROT variants, Base64, RC4, stack string reconstruction
-- **Control Flow Flattening Detection** — OLLVM-style CFF pattern identification
-- **Opaque Predicate Detection** — Always-true/false branch identification
+### Deobfuscation (3 tools)
+- **String Deobfuscation:** XOR brute force, ROT variants, Base64, RC4, and stack string reconstruction
+- **Control Flow Flattening Detection:** OLLVM-style CFF pattern identification
+- **Opaque Predicate Detection:** Always-true/false branch identification
 
-### 🧮 Symbolic Execution (4 tools)
-- **angr Integration** — Path exploration, constraint solving, CFG generation, vulnerability scanning
-- **Triton DSE** — Dynamic symbolic execution with concrete+symbolic state
+### Symbolic Execution (4 tools)
+- **angr Integration:** Path exploration, constraint solving, CFG generation, and vulnerability scanning
+- **Triton DSE:** Dynamic symbolic execution with concrete and symbolic state
 
-### 📁 Binary Format Specializations (4 tools)
-- **APK/DEX** — Android analysis: manifest, permissions, native libs, DEX parsing
-- **.NET IL** — Assembly metadata, type/method listing, IL disassembly
-- **Java Class** — Class file parsing, javap integration, bytecode disassembly
-- **WebAssembly** — WASM section parsing, import/export extraction, disassembly
+### Binary Format Specializations (4 tools)
+- **APK/DEX:** Android analysis including manifest, permissions, native libs, and DEX parsing
+- **.NET IL:** Assembly metadata, type/method listing, and IL disassembly
+- **Java Class:** Class file parsing, javap integration, and bytecode disassembly
+- **WebAssembly:** WASM section parsing, import/export extraction, and disassembly
 
-### 🛠️ Utilities (8 tools)
-- **Hex Tools** — Hexdump, pattern search (IDA-style wildcards), binary diff
-- **Crypto** — Hashing (MD5/SHA/TLSH/ssdeep), XOR analysis, crypto constant scanning
-- **Patching** — Binary patching with backup, NOP-sled support
-- **Network** — PCAP analysis with protocol stats, DNS extraction, C2 beacon detection
+### Utilities (8 tools)
+- **Hex Tools:** Hexdump, pattern search (IDA-style wildcards), and binary diff
+- **Crypto:** Hashing (MD5/SHA/TLSH/ssdeep), XOR analysis, and crypto constant scanning
+- **Patching:** Binary patching with backup and NOP-sled support
+- **Network:** PCAP analysis with protocol stats, DNS extraction, and C2 beacon detection
 
-### ⚙️ Admin (2 tools)
-- **Server Status** — Version, tool count, cache stats, rate limit stats, available tools
-- **Cache Management** — View stats, clear cache, invalidate specific entries
+### Admin (2 tools)
+- **Server Status:** Version, tool count, cache stats, rate limit stats, and available tools
+- **Cache Management:** View stats, clear cache, and invalidate specific entries
 
 ---
 
@@ -172,12 +172,12 @@ This prints a table showing which external tools and Python modules are detected
 
 ### How It Connects (Important)
 
-**Revula uses stdio transport only.** The server reads JSON-RPC from stdin and writes to stdout. Every MCP client listed below launches revula as a local subprocess — there is no HTTP server, no SSE endpoint, no remote connection.
+**Revula uses stdio transport only.** The server reads JSON-RPC from stdin and writes to stdout. Every MCP client listed below launches revula as a local subprocess. There is no HTTP server, no SSE endpoint, and no remote connection.
 
 **What this means for you:**
 - Revula must be installed on the **same machine** where your IDE/client runs.
-- If you use a remote server or Docker, you must run both the client and revula inside the same environment (or use SSH piping — see [Custom / Other Clients](#8-custom--other-clients)).
-- Every client below uses the same `revula` command — the only difference is _where_ you put the config.
+- If you use a remote server or Docker, you must run both the client and revula inside the same environment (or use SSH piping; see [Custom / Other Clients](#8-custom--other-clients)).
+- Every client below uses the same `revula` command. The only difference is _where_ you put the config.
 
 ### Before You Start
 
@@ -201,7 +201,7 @@ If `revula` is not in your PATH, use the full path in every config below.
 
 ### 1. Claude Desktop
 
-**Status:** ✅ Fully supported — this is the primary client.
+**Status:** Fully supported. This is the primary client.
 
 **Config file locations:**
 
@@ -261,21 +261,21 @@ If using `uvx` (zero-install):
 }
 ```
 
-**After editing:** Quit and reopen Claude Desktop. Check the MCP tools icon (🔧) — you should see 111 tools.
+**After editing:** Quit and reopen Claude Desktop. Check the MCP tools icon to confirm 107 tools are available.
 
 ---
 
 ### 2. Claude Code (CLI)
 
-**Status:** ✅ Fully supported.
+**Status:** Fully supported.
 
-**Option A: CLI command (easiest)**
+**Option A: CLI command (recommended)**
 
 ```bash
 claude mcp add revula -- revula
 ```
 
-That's it. Claude Code will start revula as a subprocess when needed.
+Claude Code will start revula as a subprocess when needed.
 
 **Option B: Manual config**
 
@@ -296,7 +296,7 @@ Edit `~/.claude.json` (or `~/.claude/settings.json` depending on version):
 
 ### 3. VS Code (GitHub Copilot)
 
-**Status:** ✅ Supported — requires GitHub Copilot extension with MCP support (VS Code 1.99+).
+**Status:** Supported. Requires GitHub Copilot extension with MCP support (VS Code 1.99+).
 
 **Important:** MCP support in VS Code is available through the GitHub Copilot Chat extension. Make sure you have:
 - VS Code 1.99 or later
@@ -319,7 +319,7 @@ This repo ships with `.vscode/mcp.json`:
 }
 ```
 
-Just open this project in VS Code — Copilot will discover the MCP server automatically.
+Just open this project in VS Code and Copilot will discover the MCP server automatically.
 
 **Option B: User-level config (global, all projects)**
 
@@ -365,7 +365,7 @@ EOF
 
 ### 4. Cursor
 
-**Status:** ✅ Supported — Cursor has built-in MCP support.
+**Status:** Supported. Cursor has built-in MCP support.
 
 **Config file:** `~/.cursor/mcp.json` (global) or `.cursor/mcp.json` (per-project).
 
@@ -408,7 +408,7 @@ EOF
 
 ### 5. Windsurf (Codeium)
 
-**Status:** ✅ Supported — Windsurf Cascade supports MCP servers.
+**Status:** Supported. Windsurf Cascade supports MCP servers.
 
 **Config file:** `~/.codeium/windsurf/mcp_config.json`
 
@@ -432,7 +432,7 @@ EOF
 
 ### 6. Continue.dev
 
-**Status:** ✅ Supported — Continue has MCP support in recent versions.
+**Status:** Supported. Continue has MCP support in recent versions.
 
 **Config file:** `~/.continue/config.json`
 
@@ -465,7 +465,7 @@ mcpServers:
 
 ### 7. Zed
 
-**Status:** ✅ Supported — Zed has native MCP support via context servers.
+**Status:** Supported. Zed has native MCP support via context servers.
 
 **Config file:** `~/.config/zed/settings.json` (Linux/macOS)
 
@@ -493,14 +493,14 @@ Add to your `settings.json`:
 **Direct invocation:**
 
 ```bash
-# Start the server — it reads from stdin, writes to stdout, logs to stderr
+# Start the server (reads from stdin, writes to stdout, logs to stderr)
 revula
 ```
 
 **Over SSH (remote machine):**
 
 ```bash
-# Run revula on a remote machine, pipe stdio through SSH
+# Run revula on a remote machine with stdio piped through SSH
 ssh user@remote-host revula
 ```
 
@@ -547,7 +547,7 @@ asyncio.run(main())
 Configure any client with one command:
 
 ```bash
-# Interactive — pick a client from the menu
+# Interactive: pick a client from the menu
 python scripts/setup/setup_ide.py
 
 # Configure a specific client
@@ -567,7 +567,7 @@ python scripts/setup/setup_ide.py --print-only
 python scripts/setup/setup_ide.py --client cursor --command "/home/you/venv/bin/revula"
 ```
 
-The script auto-detects how to run revula (PATH → uvx → python -m), creates backups before writing, and merges into existing configs.
+The script auto-detects how to run revula (PATH, uvx, or python -m), creates backups before writing, and merges into existing configs.
 
 ---
 
@@ -626,18 +626,18 @@ revula degrades gracefully. Tools that depend on missing backends return clear e
 | Category | Always Available | Needs External Tool | Needs Python Module |
 |----------|-----------------|--------------------|--------------------|
 | **Static** | PE/ELF parsing, entropy, strings | `objdump`, `radare2`, `ghidra`, `retdec`, `floss`, `capa` | `capstone` ✓, `lief` ✓, `pefile` ✓, `yara` ✓ |
-| **Dynamic** | — | `gdb`, `lldb` | `frida` |
+| **Dynamic** | | `gdb`, `lldb` | `frida` |
 | **Android** | APK manifest/DEX parsing (via zipfile) | `jadx`, `apktool`, `adb`, `zipalign`, `apksigner`, `tcpdump` | `frida`, `quark-engine` |
-| **Platform** | — | `rizin`, `radare2`, `gdb`, `qemu-user`, `qemu-system-*` | `r2pipe`, `binaryninja` |
-| **Exploit** | Format string calculator | — | `pwntools`, `keystone-engine` |
-| **Anti-Analysis** | Pattern scanning (via `lief` + `capstone`) | — | — |
-| **Malware** | File hashing, IoC extraction, risk scoring | — | `yara` ✓, `ssdeep`, `tlsh` |
-| **Firmware** | — | `binwalk`, `sasquatch` | — |
+| **Platform** | | `rizin`, `radare2`, `gdb`, `qemu-user`, `qemu-system-*` | `r2pipe`, `binaryninja` |
+| **Exploit** | Format string calculator | | `pwntools`, `keystone-engine` |
+| **Anti-Analysis** | Pattern scanning (via `lief` + `capstone`) | | |
+| **Malware** | File hashing, IoC extraction, risk scoring | | `yara` ✓, `ssdeep`, `tlsh` |
+| **Firmware** | | `binwalk`, `sasquatch` | |
 | **Protocol** | Binary protocol dissection, fuzzing | `tshark` | `scapy` |
 | **Unpacking** | Packer signature detection | `upx` | `frida` |
-| **Deobfuscation** | XOR/ROT/Base64 deobfuscation | — | `capstone` ✓ |
-| **Symbolic** | — | — | `angr`, `triton` |
-| **Binary Formats** | — | `aapt`, `javap`, `monodis`, `wasm2wat` | — |
+| **Deobfuscation** | XOR/ROT/Base64 deobfuscation | | `capstone` ✓ |
+| **Symbolic** | | | `angr`, `triton` |
+| **Binary Formats** | | `aapt`, `javap`, `monodis`, `wasm2wat` | |
 | **Utilities** | Hex dump, binary diff, patching | `tshark` | `scapy`, `ssdeep`, `tlsh` |
 
 ✓ = included in core dependencies (always installed).
@@ -648,7 +648,7 @@ revula degrades gracefully. Tools that depend on missing backends return clear e
 # Frida (dynamic instrumentation)
 pip install frida frida-tools
 
-# angr (symbolic execution) — large install, ~2 GB
+# angr (symbolic execution, large install ~2 GB)
 pip install angr
 
 # radare2 bindings
@@ -676,7 +676,7 @@ sudo apt install apktool jadx android-sdk adb zipalign apksigner
 # Network
 sudo apt install tshark
 
-# Ghidra — download from https://ghidra-sre.org/
+# Ghidra: download from https://ghidra-sre.org/
 export GHIDRA_INSTALL=/opt/ghidra
 ```
 
@@ -695,36 +695,36 @@ src/revula/                     # 19,400+ LOC across 63 Python files
 ├── rate_limit.py               # Token-bucket rate limiter
 └── tools/
     ├── __init__.py             # Tool registry + @register_tool decorator
-    ├── static/                 # 8 files — PE/ELF, disasm, strings, entropy, symbols, YARA, capa, decompile
-    ├── dynamic/                # 4 files — GDB, LLDB, Frida, coverage
-    ├── android/                # 9 files — APK, DEX, decompile, native, device, frida, traffic, repack, scanners
-    ├── platform/               # 3 files — Rizin, GDB-enhanced, QEMU
-    ├── exploit/                # 2 files — Shellcode generation, format string exploitation
-    ├── antianalysis/           # 1 file  — Anti-debug/VM detection and bypass generation
-    ├── malware/                # 1 file  — Triage, sandbox queries, YARA gen, config extraction
-    ├── firmware/               # 1 file  — Extraction, vuln scanning, base address detection
-    ├── protocol/               # 1 file  — PCAP analysis, protocol dissection, fuzzing
-    ├── deobfuscation/          # 1 file  — String deobfuscation, CFF, opaque predicates
-    ├── unpacking/              # 1 file  — Packer detection, UPX, dynamic unpack, PE rebuild
-    ├── symbolic/               # 1 file  — angr + Triton
-    ├── binary_formats/         # 1 file  — .NET, Java, WASM
-    ├── utils/                  # 4 files — Hex, crypto, patching, network
-    └── admin/                  # 1 file  — Server status, cache management
+    ├── static/                 # 8 files: PE/ELF, disasm, strings, entropy, symbols, YARA, capa, decompile
+    ├── dynamic/                # 4 files: GDB, LLDB, Frida, coverage
+    ├── android/                # 9 files: APK, DEX, decompile, native, device, frida, traffic, repack, scanners
+    ├── platform/               # 3 files: Rizin, GDB-enhanced, QEMU
+    ├── exploit/                # 2 files: shellcode generation, format string exploitation
+    ├── antianalysis/           # 1 file:  anti-debug/VM detection and bypass generation
+    ├── malware/                # 1 file:  triage, sandbox queries, YARA gen, config extraction
+    ├── firmware/               # 1 file:  extraction, vuln scanning, base address detection
+    ├── protocol/               # 1 file:  PCAP analysis, protocol dissection, fuzzing
+    ├── deobfuscation/          # 1 file:  string deobfuscation, CFF, opaque predicates
+    ├── unpacking/              # 1 file:  packer detection, UPX, dynamic unpack, PE rebuild
+    ├── symbolic/               # 1 file:  angr + Triton
+    ├── binary_formats/         # 1 file:  .NET, Java, WASM
+    ├── utils/                  # 4 files: hex, crypto, patching, network
+    └── admin/                  # 1 file:  server status, cache management
 ```
 
 ### How It Works
 
-1. **Startup** — `server.py` loads `config.py`, which probes the system for external tools (via `shutil.which`) and Python modules (via `importlib.util.find_spec`). Results are cached in a `ServerConfig` singleton.
+1. **Startup.** `server.py` loads `config.py`, which probes the system for external tools (via `shutil.which`) and Python modules (via `importlib.util.find_spec`). Results are cached in a `ServerConfig` singleton.
 
-2. **Tool Registration** — Each tool file uses `@TOOL_REGISTRY.register()` to declare its name, description, JSON Schema, and async handler. Tools self-register on import.
+2. **Tool Registration.** Each tool file uses `@TOOL_REGISTRY.register()` to declare its name, description, JSON Schema, and async handler. Tools self-register on import.
 
-3. **Request Dispatch** — When a `tools/call` request arrives, the server looks up the handler in `TOOL_REGISTRY`, validates arguments against the JSON Schema, checks rate limits, checks the result cache, and dispatches to the handler.
+3. **Request Dispatch.** When a `tools/call` request arrives, the server looks up the handler in `TOOL_REGISTRY`, validates arguments against the JSON Schema, checks rate limits, checks the result cache, and dispatches to the handler.
 
-4. **Subprocess Execution** — All external tool invocations go through `sandbox.safe_subprocess()`, which enforces `shell=False`, sets `RLIMIT_AS` and `RLIMIT_CPU`, validates paths, and captures stdout/stderr.
+4. **Subprocess Execution.** All external tool invocations go through `sandbox.safe_subprocess()`, which enforces `shell=False`, sets `RLIMIT_AS` and `RLIMIT_CPU`, validates paths, and captures stdout/stderr.
 
-5. **Result Caching** — Deterministic operations (disassembly, parsing) are cached with a configurable TTL. Mutating operations (patching, Frida injection) bypass the cache automatically.
+5. **Result Caching.** Deterministic operations (disassembly, parsing) are cached with a configurable TTL. Mutating operations (patching, Frida injection) bypass the cache automatically.
 
-6. **Session Management** — Long-lived debugger and Frida sessions are tracked by `SessionManager`, with automatic cleanup after 30 minutes of idle time.
+6. **Session Management.** Long-lived debugger and Frida sessions are tracked by `SessionManager`, with automatic cleanup after 30 minutes of idle time.
 
 ### Infrastructure Components
 
@@ -744,37 +744,37 @@ revula operates on the principle that **user-supplied arguments are untrusted**.
 
 ### Subprocess Isolation
 
-- **No `shell=True`** — every subprocess call uses `shell=False` with explicit argument lists. This is enforced by a CI test (`test_no_shell_true`) that scans every source file.
-- **No `eval()` / `exec()`** — no dynamic code evaluation of user input.
-- **No f-string injection** — user-supplied values are never interpolated into `python3 -c` code strings. Values are passed via `sys.argv`, `stdin`, or environment variables. Enforced by `test_no_fstring_in_subprocess_python_code`.
-- **JavaScript escaping** — all user-controlled values interpolated into Frida JavaScript strings pass through `_js_escape()`, which escapes backslashes, quotes, newlines, and other injection vectors.
-- **Resource limits** — every subprocess gets `RLIMIT_AS` (512 MB default) and `RLIMIT_CPU` (60 s default) via `resource.setrlimit()`.
-- **Timeout enforcement** — `asyncio.wait_for()` wraps all subprocess calls.
+- **No `shell=True`:** Every subprocess call uses `shell=False` with explicit argument lists. This is enforced by a CI test (`test_no_shell_true`) that scans every source file.
+- **No `eval()` / `exec()`:** No dynamic code evaluation of user input.
+- **No f-string injection:** User-supplied values are never interpolated into `python3 -c` code strings. Values are passed via `sys.argv`, `stdin`, or environment variables. Enforced by `test_no_fstring_in_subprocess_python_code`.
+- **JavaScript escaping:** All user-controlled values interpolated into Frida JavaScript strings pass through `_js_escape()`, which escapes backslashes, quotes, newlines, and other injection vectors.
+- **Resource limits:** Every subprocess gets `RLIMIT_AS` (512 MB default) and `RLIMIT_CPU` (60 s default) via `resource.setrlimit()`.
+- **Timeout enforcement:** `asyncio.wait_for()` wraps all subprocess calls.
 
 ### Path Validation
 
-- **Fail-closed** — `validate_path()` rejects all paths when no `allowed_dirs` are configured (falls back to `get_config().security.allowed_dirs`). It does not silently pass.
-- **Traversal blocked** — `..` components are rejected after `os.path.realpath()` resolution.
-- **Absolute paths required** — relative paths are rejected.
-- **Validated everywhere** — all file-accepting tool handlers call `validate_path()` before any file I/O.
+- **Fail-closed:** `validate_path()` rejects all paths when no `allowed_dirs` are configured (falls back to `get_config().security.allowed_dirs`). It does not silently pass.
+- **Traversal blocked:** `..` components are rejected after `os.path.realpath()` resolution.
+- **Absolute paths required:** Relative paths are rejected.
+- **Validated everywhere:** All file-accepting tool handlers call `validate_path()` before any file I/O.
 
 ### Frida Hardening
 
-- **Script size limit** — Frida scripts are capped at 1 MB to prevent memory exhaustion.
-- **Memory dump limit** — memory dumps are capped at 100 MB.
-- **JS injection prevention** — class names, method names, module names, and other user-supplied values are escaped before interpolation into JavaScript templates.
+- **Script size limit:** Frida scripts are capped at 1 MB to prevent memory exhaustion.
+- **Memory dump limit:** Memory dumps are capped at 100 MB.
+- **JS injection prevention:** Class names, method names, module names, and other user-supplied values are escaped before interpolation into JavaScript templates.
 
 ### Temporary Files
 
-- **No `tempfile.mktemp()`** — all temporary files use `tempfile.NamedTemporaryFile()` or `tempfile.mkdtemp()` to prevent TOCTOU race conditions.
-- **No hardcoded `/tmp` paths** — all temporary paths use the `tempfile` module.
+- **No `tempfile.mktemp()`:** All temporary files use `tempfile.NamedTemporaryFile()` or `tempfile.mkdtemp()` to prevent TOCTOU race conditions.
+- **No hardcoded `/tmp` paths:** All temporary paths use the `tempfile` module.
 
 ### Rate Limiting & Caching
 
-- **Global limit** — 120 requests per minute (configurable).
-- **Per-tool limit** — 30 requests per minute (configurable).
-- **Cache TTL** — 10-minute TTL on read-only results, 256-entry LRU.
-- **Session TTL** — idle sessions auto-cleaned after 30 minutes.
+- **Global limit:** 120 requests per minute (configurable).
+- **Per-tool limit:** 30 requests per minute (configurable).
+- **Cache TTL:** 10-minute TTL on read-only results, 256-entry LRU.
+- **Session TTL:** Idle sessions auto-cleaned after 30 minutes.
 
 ---
 
@@ -817,12 +817,12 @@ bash scripts/test/run_tests.sh
 
 The `TestVulnerabilityHardeningV3` suite in `test_security.py` enforces:
 
-- **No f-string code injection** — scans all source files for `"-c"` arguments containing f-strings.
-- **No `tempfile.mktemp()`** — prevents TOCTOU race conditions.
-- **No hardcoded `/tmp/` paths** — enforces use of the `tempfile` module.
-- **Fail-closed path validation** — verifies `validate_path()` rejects paths when `allowed_dirs` is empty.
-- **Frida JS escaping** — verifies `_js_escape()` blocks injection payloads.
-- **Shellcode hex validation** — verifies non-hex input is rejected, not passed to subprocess.
+- **No f-string code injection:** Scans all source files for `"-c"` arguments containing f-strings.
+- **No `tempfile.mktemp()`:** Prevents TOCTOU race conditions.
+- **No hardcoded `/tmp/` paths:** Enforces use of the `tempfile` module.
+- **Fail-closed path validation:** Verifies `validate_path()` rejects paths when `allowed_dirs` is empty.
+- **Frida JS escaping:** Verifies `_js_escape()` blocks injection payloads.
+- **Shellcode hex validation:** Verifies non-hex input is rejected, not passed to subprocess.
 
 ---
 
@@ -834,15 +834,15 @@ All scripts are in `scripts/` and are fully implemented:
 
 | Script | Purpose |
 |--------|---------|
-| `scripts/install/install_all.sh` | Master installer — Python check, venv, deps, external tools, config |
-| `scripts/install/install_verify.sh` | Post-install verification — checks all dependencies and paths |
+| `scripts/install/install_all.sh` | Master installer: Python check, venv, deps, external tools, config |
+| `scripts/install/install_verify.sh` | Post-install verification: checks all dependencies and paths |
 
 ### Setup
 
 | Script | Purpose |
 |--------|---------|
-| `scripts/setup/setup_ide.py` | **Universal IDE/client configurator** — Claude Desktop, VS Code, Cursor, Windsurf, Zed, Continue |
-| `scripts/setup/setup_claude_desktop.py` | Claude Desktop–specific auto-configurator (legacy, still works) |
+| `scripts/setup/setup_ide.py` | Universal IDE/client configurator for Claude Desktop, VS Code, Cursor, Windsurf, Zed, and Continue |
+| `scripts/setup/setup_claude_desktop.py` | Claude Desktop-specific auto-configurator (legacy, still functional) |
 | `scripts/setup/setup_config_toml.py` | Interactive config.toml generator |
 | `scripts/setup/setup_android_device.sh` | Prepare an Android device for RE (root, frida-server, certs) |
 
@@ -860,47 +860,47 @@ All scripts are in `scripts/` and are fully implemented:
 
 ## Usage Examples
 
-### Static Analysis — Analyze a PE Binary
+### Static Analysis: Analyze a PE Binary
 
 Ask Claude: *"Analyze this binary for me: /home/user/samples/malware.exe"*
 
 Behind the scenes, Claude can call:
-1. `re_pe_elf` — parse PE headers, sections, imports, exports
-2. `re_strings` — extract and classify strings (URLs, IPs, crypto constants)
-3. `re_entropy` — check for packing (high entropy sections)
-4. `re_yara_scan` — scan with YARA rules
-5. `re_capa_scan` — map to ATT&CK techniques
+1. `re_pe_elf` to parse PE headers, sections, imports, and exports
+2. `re_strings` to extract and classify strings (URLs, IPs, crypto constants)
+3. `re_entropy` to check for packing (high entropy sections)
+4. `re_yara_scan` to scan with YARA rules
+5. `re_capa_scan` to map to ATT&CK techniques
 
-### Dynamic Analysis — Debug with GDB
+### Dynamic Analysis: Debug with GDB
 
 Ask Claude: *"Debug /home/user/crackme and find the password check"*
 
 Claude can orchestrate:
-1. `re_gdb` with action `start` — launch the binary under GDB
-2. `re_disasm` — disassemble key functions
-3. `re_gdb` with action `breakpoint` — set breakpoints at comparison instructions
-4. `re_gdb` with action `continue`, `registers` — run and inspect state
+1. `re_gdb` with action `start` to launch the binary under GDB
+2. `re_disasm` to disassemble key functions
+3. `re_gdb` with action `breakpoint` to set breakpoints at comparison instructions
+4. `re_gdb` with action `continue` and `registers` to run and inspect state
 
-### Android — Reverse an APK
+### Android: Reverse an APK
 
 Ask Claude: *"Analyze this APK for security issues: /home/user/app.apk"*
 
 Claude can call:
-1. `re_apk_parse` — extract manifest, permissions, components
-2. `re_dex_analyze` — list classes, find suspicious methods
-3. `re_android_decompile` — decompile with jadx
-4. `re_android_scanner` — run security scanners
-5. `re_antianalysis_detect` — check for anti-tampering
+1. `re_apk_parse` to extract manifest, permissions, and components
+2. `re_dex_analyze` to list classes and find suspicious methods
+3. `re_android_decompile` to decompile with jadx
+4. `re_android_scanner` to run security scanners
+5. `re_antianalysis_detect` to check for anti-tampering
 
 ### Malware Triage
 
 Ask Claude: *"Triage this suspected malware sample"*
 
 Claude can call:
-1. `re_malware_triage` — hashes, IoCs, import analysis, risk score
-2. `re_malware_config` — extract C2 URLs, encryption keys
-3. `re_malware_yara_gen` — generate a YARA rule for the sample
-4. `re_malware_sandbox` — query VirusTotal/Hybrid Analysis
+1. `re_malware_triage` for hashes, IoCs, import analysis, and risk score
+2. `re_malware_config` to extract C2 URLs and encryption keys
+3. `re_malware_yara_gen` to generate a YARA rule for the sample
+4. `re_malware_sandbox` to query VirusTotal/Hybrid Analysis
 
 ---
 
@@ -933,23 +933,23 @@ These tools produce clear "tool not found" errors when backends are missing:
 
 ### Performance Expectations
 
-- **Startup** — ~1 second (probes system for available tools via `shutil.which` and `importlib.util.find_spec`)
-- **Static analysis** — sub-second for most operations on files under 100 MB
-- **Disassembly** — Capstone disassembles ~1 MB/s; radare2 adds full analysis overhead
-- **Subprocess calls** — each external tool invocation has ~50–200 ms overhead from process spawn
-- **Caching** — repeat calls to deterministic tools (disassembly, parsing) return instantly from cache
-- **Rate limiting** — 120 requests/minute global, 30/minute per tool (configurable)
+- **Startup:** ~1 second (probes system for available tools via `shutil.which` and `importlib.util.find_spec`)
+- **Static analysis:** Sub-second for most operations on files under 100 MB
+- **Disassembly:** Capstone disassembles ~1 MB/s; radare2 adds full analysis overhead
+- **Subprocess calls:** Each external tool invocation has ~50-200 ms overhead from process spawn
+- **Caching:** Repeat calls to deterministic tools (disassembly, parsing) return instantly from cache
+- **Rate limiting:** 120 requests/minute global, 30/minute per tool (configurable)
 
 ### Known Limitations
 
-1. **No Windows native support** — designed for Linux. macOS works for most tools. Windows requires WSL2.
-2. **stdio transport only** — there is no HTTP/SSE server. Revula must run on the same machine as your IDE (or be piped via SSH/Docker). This is a deliberate design choice for security — MCP over stdio is simpler and avoids exposing a network socket.
-3. **No GUI** — this is a headless MCP server. Use Claude Desktop, VS Code Copilot, Cursor, or another MCP client for the interface.
-4. **Large binary analysis** — files over 500 MB may hit the default memory limit (512 MB). Increase via `REVULA_MAX_MEMORY`.
-5. **angr install size** — the `angr` optional dependency is ~2 GB and takes several minutes to install.
-6. **Frida version coupling** — Frida client and server versions must match exactly. Use `scripts/utils/download_frida_server.py` to get the right version.
-7. **Single-user design** — the server handles one MCP client at a time via stdio. There is no multi-tenant isolation. Each IDE/client spawns its own server process.
-8. **IDA Pro integration** — requires IDA Pro with the REST API plugin. Not included.
+1. **No Windows native support.** Designed for Linux. macOS works for most tools. Windows requires WSL2.
+2. **stdio transport only.** There is no HTTP/SSE server. Revula must run on the same machine as your IDE (or be piped via SSH/Docker). This is a deliberate design choice for security: MCP over stdio is simpler and avoids exposing a network socket.
+3. **No GUI.** This is a headless MCP server. Use Claude Desktop, VS Code Copilot, Cursor, or another MCP client for the interface.
+4. **Large binary analysis.** Files over 500 MB may hit the default memory limit (512 MB). Increase via `REVULA_MAX_MEMORY`.
+5. **angr install size.** The `angr` optional dependency is ~2 GB and takes several minutes to install.
+6. **Frida version coupling.** Frida client and server versions must match exactly. Use `scripts/utils/download_frida_server.py` to get the right version.
+7. **Single-user design.** The server handles one MCP client at a time via stdio. There is no multi-tenant isolation. Each IDE/client spawns its own server process.
+8. **IDA Pro integration.** Requires IDA Pro with the REST API plugin. Not included.
 
 ---
 
@@ -991,7 +991,7 @@ Add the directory to your config:
 allowed_dirs = ["/home/user/samples", "/tmp/analysis", "/some/path"]
 ```
 
-Or set via environment variable if your config doesn't have `allowed_dirs` — the server will use the config file's `allowed_dirs` as a fallback.
+Alternatively, set the value via environment variable. The server will use the config file's `allowed_dirs` as a fallback.
 
 ### Rate Limit Exceeded
 
@@ -1079,4 +1079,4 @@ python scripts/test/validate_install.py
 
 ## License
 
-GNU — see [LICENSE](LICENSE).
+Released under the GNU General Public License. See [LICENSE](LICENSE) for details.
