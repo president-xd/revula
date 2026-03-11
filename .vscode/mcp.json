@@ -1,0 +1,9 @@
+{
+  "servers": {
+    "revula": {
+      "command": "revula",
+      "args": [],
+      "env": {}
+    }
+  }
+}
