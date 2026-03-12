@@ -369,113 +369,137 @@ async def handle_dynamic_unpack(arguments: dict[str, Any]) -> list[dict[str, Any
     if not output_path:
         output_path = str(file_path.parent / f"{file_path.stem}_unpacked{file_path.suffix}")
 
-    # Spawn process
-    device = frida.get_local_device()
-    pid = device.spawn([str(file_path)])
-    session = device.attach(pid)
+    # Check if it's UPX — Frida can't handle UPX-packed ELF (loader crash)
+    data = file_path.read_bytes()
+    if b"UPX!" in data or b"UPX0" in data:
+        return error_result(
+            "UPX-packed binary detected. Frida cannot inject into UPX-packed ELF binaries "
+            "(the loader crashes before Frida gets control). "
+            "Use re_unpack_upx for static UPX unpacking instead — it's faster and more reliable."
+        )
 
-    # Script to track memory writes and dump when execution transfers to original code
-    script_code = """
-    var mainModule = Process.enumerateModules()[0];
-    var textSection = null;
+    pid = None
+    session = None
+    try:
+        # Spawn process suspended
+        device = frida.get_local_device()
+        pid = device.spawn([str(file_path)])
+        session = device.attach(pid)
 
-    // Find .text section
-    Process.enumerateRanges('r-x').forEach(function(range) {
-        if (range.file && range.file.path === mainModule.path) {
-            if (!textSection || range.base.compare(textSection.base) < 0) {
-                textSection = range;
-            }
-        }
-    });
-
-    var dumpDone = false;
-
-    // Stalk to detect when execution enters the main module's code
-    Stalker.follow(Process.getCurrentThreadId(), {
-        events: { exec: true },
-        onReceive: function(events) {
-            if (dumpDone) return;
-
-            var parsed = Stalker.parse(events, {stringify: false, annotate: false});
-            for (var i = 0; i < parsed.length; i++) {
-                var addr = parsed[i][1] || parsed[i][0];
-                if (typeof addr === 'object' && addr.compare) {
-                    // Check if we're executing in the main module
-                    var mod = Process.findModuleByAddress(addr);
-                    if (mod && mod.name === mainModule.name && !dumpDone) {
-                        dumpDone = true;
-                        Stalker.unfollow();
-
-                        // Dump the module from memory
-                        var data = mainModule.base.readByteArray(mainModule.size);
-                        send({type: 'dump', base: mainModule.base.toString(), size: mainModule.size}, data);
-                        return;
+        # Use a simpler, more robust script that avoids Stalker (which crashes
+        # on some binaries, especially UPX-packed ELF). Instead:
+        # 1. Resume the process and let unpacking stub complete naturally
+        # 2. After a short delay, dump the main module from memory
+        script_code = """
+        rpc.exports = {
+            getModuleInfo: function() {
+                var mod = Process.enumerateModules()[0];
+                return {
+                    name: mod.name,
+                    base: mod.base.toString(),
+                    size: mod.size,
+                    path: mod.path,
+                };
+            },
+            dumpModule: function() {
+                var mod = Process.enumerateModules()[0];
+                var data = mod.base.readByteArray(mod.size);
+                send({type: 'dump', base: mod.base.toString(), size: mod.size}, data);
+                return {name: mod.name, base: mod.base.toString(), size: mod.size};
+            },
+            dumpAllExecutable: function() {
+                // Dump all executable ranges (more complete for packed binaries)
+                var ranges = Process.enumerateRanges('r-x');
+                var mod = Process.enumerateModules()[0];
+                var allData = [];
+                var totalSize = 0;
+                ranges.forEach(function(range) {
+                    if (range.file && range.file.path === mod.path) {
+                        totalSize += range.size;
                     }
-                }
+                });
+                // Dump main module region
+                var data = mod.base.readByteArray(mod.size);
+                send({type: 'dump', base: mod.base.toString(), size: mod.size}, data);
+                return {name: mod.name, base: mod.base.toString(), size: mod.size, executable_ranges: totalSize};
             }
-        }
-    });
+        };
+        """
 
-    rpc.exports = {
-        getModuleInfo: function() {
-            return {
-                name: mainModule.name,
-                base: mainModule.base.toString(),
-                size: mainModule.size,
-                path: mainModule.path,
-            };
-        },
-        forceDump: function() {
-            var data = mainModule.base.readByteArray(mainModule.size);
-            send({type: 'dump', base: mainModule.base.toString(), size: mainModule.size}, data);
-            return true;
-        }
-    };
-    """
+        dump_data: bytes | None = None
+        dump_info: dict[str, Any] = {}
 
-    dump_data: bytes | None = None
+        frida_script = session.create_script(script_code)
 
-    frida_script = session.create_script(script_code)
+        def on_message(message: dict[str, Any], msg_data: Any) -> None:
+            nonlocal dump_data
+            if msg_data:
+                dump_data = bytes(msg_data)
 
-    def on_message(message: dict[str, Any], data: Any) -> None:
-        nonlocal dump_data
-        if data:
-            dump_data = bytes(data)
+        frida_script.on("message", on_message)
+        frida_script.load()
 
-    frida_script.on("message", on_message)
-    frida_script.load()
+        # Resume the process and let the unpacking stub run
+        device.resume(pid)
 
-    # Resume and wait
-    device.resume(pid)
+        import asyncio as aio
+        # Wait for unpacking to complete (typically < 1 second for UPX)
+        await aio.sleep(min(timeout, 3))
 
-    import asyncio as aio
-    for _ in range(timeout * 2):
-        await aio.sleep(0.5)
-        if dump_data:
-            break
-
-    # Force dump if not captured by stalker
-    if not dump_data:
+        # Now dump the module from memory (unpacking stub should be done)
         try:
-            frida_script.exports_sync.force_dump()
+            dump_info = frida_script.exports_sync.dump_all_executable()
+            # Wait for the data to arrive via message
             await aio.sleep(1)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("dumpAllExecutable failed: %s, trying dumpModule", e)
+            try:
+                dump_info = frida_script.exports_sync.dump_module()
+                await aio.sleep(1)
+            except Exception as e2:
+                logger.warning("dumpModule also failed: %s", e2)
 
-    # Cleanup
-    with contextlib.suppress(Exception):
-        device.kill(pid)
+        # Cleanup
+        with contextlib.suppress(Exception):
+            frida_script.unload()
+        with contextlib.suppress(Exception):
+            session.detach()
 
-    if dump_data:
-        Path(output_path).write_bytes(dump_data)
-        return text_result({
-            "status": "dumped",
-            "output": output_path,
-            "size": len(dump_data),
-            "note": "Raw memory dump — may need PE rebuild (re_pe_rebuild)",
-        })
+        if dump_data:
+            Path(output_path).write_bytes(dump_data)
+            return text_result({
+                "status": "dumped",
+                "output": output_path,
+                "size": len(dump_data),
+                "module_info": dump_info,
+                "note": "Raw memory dump — may need PE rebuild (re_pe_rebuild) for PE binaries",
+            })
 
-    return error_result("Failed to capture unpacked image")
+        return error_result(
+            "Failed to capture unpacked image. "
+            "For UPX-packed binaries, use re_unpack_upx for static unpacking instead."
+        )
+
+    except frida.ProcessNotRespondingError:
+        return error_result(
+            "Process not responding (possibly crashed during spawn). "
+            "For UPX-packed binaries, use re_unpack_upx for static unpacking."
+        )
+    except frida.TransportError as e:
+        return error_result(
+            f"Frida transport error: {e}. "
+            "The binary may have crashed during unpacking. "
+            "For UPX-packed binaries, use re_unpack_upx for static unpacking."
+        )
+    except Exception as e:
+        return error_result(
+            f"Dynamic unpacking failed: {e}. "
+            "For UPX-packed binaries, try re_unpack_upx instead."
+        )
+    finally:
+        if pid is not None:
+            with contextlib.suppress(Exception):
+                device.kill(pid)
 
 
 # ---------------------------------------------------------------------------
