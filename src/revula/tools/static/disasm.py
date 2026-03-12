@@ -151,8 +151,8 @@ def _disasm_capstone(
             "size": insn.size,
         }
 
-        # Add groups info if available
-        if insn.detail:
+        # Add groups info if available (Capstone 6+ exposes directly on insn)
+        try:
             groups = []
             for g in insn.groups:
                 try:
@@ -171,6 +171,8 @@ def _disasm_capstone(
                 entry["comment"] = "JUMP"
             elif cs.CS_GRP_INT in insn.groups:
                 entry["comment"] = "INTERRUPT"
+        except AttributeError:
+            pass  # No detail info available
 
         instructions.append(entry)
 
@@ -188,37 +190,67 @@ async def _disasm_r2(
     count: int = 50,
     arch: str = "",
 ) -> list[dict[str, Any]]:
-    """Disassemble using radare2 via r2pipe (uses pDj for JSON output)."""
+    """Disassemble using radare2 via r2pipe (uses pdj for JSON output)."""
     import asyncio
 
     import r2pipe
 
     loop = asyncio.get_running_loop()
 
+    # Map our arch names to r2 asm.arch + asm.bits
+    _ARCH_MAP: dict[str, tuple[str, int]] = {
+        "x86": ("x86", 32),
+        "x64": ("x86", 64),
+        "arm": ("arm", 32),
+        "arm64": ("arm", 64),
+        "mips": ("mips", 32),
+        "mips32": ("mips", 32),
+        "mips64": ("mips", 64),
+        "riscv32": ("riscv", 32),
+        "riscv64": ("riscv", 64),
+        "ppc": ("ppc", 32),
+        "ppc64": ("ppc", 64),
+    }
+
     def _do_r2() -> list[dict[str, Any]]:
         r2 = r2pipe.open(binary_path, flags=["-2"])  # -2: disable stderr
         try:
             r2.cmd("aaa")  # Analyze all
 
-            if arch:
+            # Map arch names to r2 format (e.g. "x64" -> arch=x86, bits=64)
+            if arch and arch in _ARCH_MAP:
+                r2_arch, r2_bits = _ARCH_MAP[arch]
+                r2.cmd(f"e asm.arch={r2_arch}")
+                r2.cmd(f"e asm.bits={r2_bits}")
+            elif arch:
+                # Unknown arch — pass through and hope r2 understands
                 r2.cmd(f"e asm.arch={arch}")
 
             if offset:
                 r2.cmd(f"s {offset}")
+            else:
+                # Seek to entry point; without this we stay at 0x0 (ELF header)
+                r2.cmd("s entry0")
 
-            # Use pDj for JSON disassembly output
-            result = r2.cmdj(f"pDj {count}")
+            # pdj = disassemble N instructions as JSON (not pDj which is N bytes)
+            result = r2.cmdj(f"pdj {count}")
             if not result:
                 return []
 
             instructions = []
             for insn in result:
+                # r2 JSON fields: addr, opcode, disasm, bytes, size, type
+                disasm = insn.get("disasm") or insn.get("opcode") or ""
+                disasm_parts = disasm.split(None, 1)
+                mnemonic = disasm_parts[0] if disasm_parts else insn.get("type", "")
+                op_str = disasm_parts[1] if len(disasm_parts) > 1 else ""
+
                 entry = {
-                    "address": f"0x{insn.get('offset', 0):x}",
-                    "address_int": insn.get("offset", 0),
+                    "address": f"0x{insn.get('addr', 0):x}",
+                    "address_int": insn.get("addr", 0),
                     "bytes": insn.get("bytes", ""),
-                    "mnemonic": insn.get("type", insn.get("disasm", "").split()[0] if insn.get("disasm") else ""),
-                    "op_str": " ".join(insn.get("disasm", "").split()[1:]) if insn.get("disasm") else "",
+                    "mnemonic": mnemonic,
+                    "op_str": op_str,
                     "size": insn.get("size", 0),
                 }
 
@@ -226,6 +258,8 @@ async def _disasm_r2(
                     entry["comment"] = insn["comment"]
                 if insn.get("xrefs"):
                     entry["xrefs"] = insn["xrefs"]
+                if insn.get("flags"):
+                    entry["flags"] = insn["flags"]
 
                 instructions.append(entry)
 
