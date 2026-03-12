@@ -197,14 +197,24 @@ async def handle_rizin_diff(arguments: dict[str, Any]) -> list[dict[str, Any]]:
     if not rz_diff:
         return error_result("rz-diff not found. Install rizin.")
 
+    # Run byte-level diff with Myers algorithm
     proc = await safe_subprocess(
-        [rz_diff, str(path_a), str(path_b)],
+        [rz_diff, "-d", "myers", str(path_a), str(path_b)],
         timeout=120,
     )
+    diff_output = proc.stdout.strip() if proc.success else proc.stderr.strip()
+
+    # Also try ssdeep similarity comparison
+    proc_ssdeep = await safe_subprocess(
+        [rz_diff, "-d", "ssdeep", str(path_a), str(path_b)],
+        timeout=120,
+    )
+    ssdeep_output = proc_ssdeep.stdout.strip() if proc_ssdeep.success else ""
 
     return text_result({
         "binary_a": str(path_a),
         "binary_b": str(path_b),
-        "diff": proc.stdout,
+        "diff": diff_output,
+        "ssdeep_diff": ssdeep_output if ssdeep_output else None,
         "analyzer": "rz-diff",
     })
