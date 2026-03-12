@@ -293,14 +293,15 @@ def safe_subprocess_sync(
         proc = subprocess.run(
             cmd,
             capture_output=capture_output,
-            text=True,
             timeout=timeout,
             cwd=str(cwd) if cwd else None,
             env=proc_env,
             preexec_fn=preexec,
             shell=False,  # NEVER shell=True
             stdin=subprocess.PIPE if stdin_data else subprocess.DEVNULL,
-            input=stdin_data.decode("utf-8", errors="replace") if stdin_data else None,
+            input=stdin_data if stdin_data else None,
+            encoding="utf-8",
+            errors="replace",
         )
 
         return SubprocessResult(
