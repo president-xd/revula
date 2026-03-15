@@ -17,6 +17,7 @@ import logging
 import os
 import platform
 import subprocess
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -27,6 +28,28 @@ if TYPE_CHECKING:
     from revula.config import SecurityConfig
 
 logger = logging.getLogger(__name__)
+
+
+def _normalize_platform_command(cmd: list[str]) -> list[str]:
+    """Map a small set of shell builtins to portable process invocations."""
+    if platform.system() != "Windows" or not cmd:
+        return cmd
+
+    program = cmd[0].lower()
+    args = cmd[1:]
+
+    if program == "echo":
+        return ["cmd", "/c", "echo", *args]
+
+    if program == "sleep" and args:
+        return [
+            sys.executable,
+            "-c",
+            "import sys, time; time.sleep(float(sys.argv[1]))",
+            args[0],
+        ]
+
+    return cmd
 
 
 # ---------------------------------------------------------------------------
@@ -264,7 +287,7 @@ def safe_subprocess_sync(
     """
     if isinstance(cmd, str):
         raise TypeError(
-            "safe_subprocess requires list[str], not str — shell injection prevention"
+            "safe_subprocess requires list[str], not str - shell injection prevention"
         )
 
     if not cmd:
@@ -272,6 +295,7 @@ def safe_subprocess_sync(
 
     # Validate command is a list of strings
     cmd = [str(c) for c in cmd]
+    effective_cmd = _normalize_platform_command(cmd)
 
     # Build environment
     proc_env = os.environ.copy()
@@ -287,11 +311,11 @@ def safe_subprocess_sync(
         if not cwd.is_dir():
             raise PathValidationError(f"Working directory does not exist: {cwd}")
 
-    logger.debug("Executing: %s (timeout=%ds, mem=%dMB)", cmd[:3], timeout, max_memory_mb)
+    logger.debug("Executing: %s (timeout=%ds, mem=%dMB)", effective_cmd[:3], timeout, max_memory_mb)
 
     try:
         proc = subprocess.run(
-            cmd,
+            effective_cmd,
             capture_output=capture_output,
             timeout=timeout,
             cwd=str(cwd) if cwd else None,
@@ -313,7 +337,7 @@ def safe_subprocess_sync(
         )
 
     except subprocess.TimeoutExpired as e:
-        logger.warning("Process timed out after %ds: %s", timeout, cmd[:3])
+        logger.warning("Process timed out after %ds: %s", timeout, effective_cmd[:3])
         return SubprocessResult(
             stdout=e.stdout or "" if isinstance(e.stdout, str) else "",
             stderr=e.stderr or "" if isinstance(e.stderr, str) else "",
@@ -387,6 +411,7 @@ async def safe_subprocess_streaming(
         raise ValueError("Empty command")
 
     cmd = [str(c) for c in cmd]
+    effective_cmd = _normalize_platform_command(cmd)
 
     proc_env = os.environ.copy()
     if env:
@@ -395,7 +420,7 @@ async def safe_subprocess_streaming(
     preexec = _make_preexec_fn(max_memory_mb, max_cpu_seconds)
 
     proc = await asyncio.create_subprocess_exec(
-        *cmd,
+        *effective_cmd,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
         cwd=str(cwd) if cwd else None,

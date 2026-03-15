@@ -10,6 +10,7 @@ Tests for:
 
 from __future__ import annotations
 
+import errno
 import os
 import tempfile
 from pathlib import Path
@@ -169,7 +170,12 @@ class TestValidatePathFileType:
         target = tmp_dir / "real.bin"
         target.write_bytes(b"\x00")
         link = tmp_dir / "link.bin"
-        link.symlink_to(target)
+        try:
+            link.symlink_to(target)
+        except OSError as exc:
+            if exc.errno == errno.EPERM or getattr(exc, "winerror", None) == 1314:
+                pytest.skip("Symlink creation requires elevated privileges on this Windows setup")
+            raise
         # Should resolve through symlink and pass
         result = validate_path(str(link), [str(tmp_dir)])
         assert result == target.resolve()
@@ -236,7 +242,7 @@ class TestCodebaseSecurityInvariants:
         for py_file in src_root.rglob("*.py"):
             if py_file.name == "sandbox.py":
                 continue
-            text = py_file.read_text()
+            text = py_file.read_text(encoding="utf-8")
             # Look for subprocess.run( not inside comments/strings
             for i, line in enumerate(text.splitlines(), 1):
                 stripped = line.lstrip()
@@ -252,7 +258,7 @@ class TestCodebaseSecurityInvariants:
         src_root = Path(__file__).parent.parent / "src" / "revula"
         violations: list[str] = []
         for py_file in src_root.rglob("*.py"):
-            text = py_file.read_text()
+            text = py_file.read_text(encoding="utf-8")
             # Use AST to find string literal line ranges so we can skip them
             string_lines: set[int] = set()
             try:
@@ -282,7 +288,7 @@ class TestCodebaseSecurityInvariants:
         src_root = Path(__file__).parent.parent / "src" / "revula"
         violations: list[str] = []
         for py_file in src_root.rglob("*.py"):
-            text = py_file.read_text()
+            text = py_file.read_text(encoding="utf-8")
             for i, line in enumerate(text.splitlines(), 1):
                 stripped = line.lstrip()
                 if stripped.startswith("#") or stripped.startswith('"') or stripped.startswith("'"):
@@ -302,7 +308,7 @@ class TestVulnerabilityHardeningV3:
         src_root = Path(__file__).parent.parent / "src" / "revula"
         violations: list[str] = []
         for py_file in src_root.rglob("*.py"):
-            text = py_file.read_text()
+            text = py_file.read_text(encoding="utf-8")
             # Look for patterns like: ["python3", "-c", f"...{var}..."]
             # This finds dangerous code injection patterns
             matches = regex_mod.finditer(
@@ -319,7 +325,7 @@ class TestVulnerabilityHardeningV3:
         src_root = Path(__file__).parent.parent / "src" / "revula"
         violations: list[str] = []
         for py_file in src_root.rglob("*.py"):
-            text = py_file.read_text()
+            text = py_file.read_text(encoding="utf-8")
             for i, line in enumerate(text.splitlines(), 1):
                 stripped = line.lstrip()
                 if stripped.startswith("#"):
@@ -334,7 +340,7 @@ class TestVulnerabilityHardeningV3:
         src_root = Path(__file__).parent.parent / "src" / "revula" / "tools"
         violations: list[str] = []
         for py_file in src_root.rglob("*.py"):
-            text = py_file.read_text()
+            text = py_file.read_text(encoding="utf-8")
             # Use AST to find string literal ranges
             string_lines: set[int] = set()
             try:
