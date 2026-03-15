@@ -4,8 +4,6 @@
 
 Connect Claude Desktop, MCP-compatible IDEs, or custom tooling to a complete reverse engineering backend. One server, every RE tool, orchestrated through the [Model Context Protocol](https://modelcontextprotocol.io/).
 
-> **107 tools** | **15 categories** | **18,800+ LOC** | **161 tests** | Zero `shell=True` | Zero `eval()`
-
 ---
 
 ## Table of Contents
