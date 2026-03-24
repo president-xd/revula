@@ -138,7 +138,7 @@ Connect Claude Desktop, MCP-compatible IDEs, or custom tooling to a complete rev
 
 ```bash
 # Clone
-git clone https://github.com/presidente-xd/revula.git
+git clone https://github.com/president-xd/revula.git
 cd revula
 
 # Option 1: Automated install (recommended)
