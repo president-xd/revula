@@ -338,7 +338,7 @@ async def _decompile_binja(
     loop = asyncio.get_running_loop()
 
     def _do_binja() -> dict[str, Any]:
-        import binaryninja  # type: ignore[import-not-found]
+        import binaryninja
 
         bv = binaryninja.open_view(str(binary_path))
         try:
