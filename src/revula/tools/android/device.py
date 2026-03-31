@@ -215,7 +215,11 @@ async def handle_device(arguments: dict[str, Any]) -> list[dict[str, Any]]:
         allowed_dirs = config.security.allowed_dirs if config else None
         validated_local = validate_path(local, allowed_dirs=allowed_dirs, must_exist=False)
         proc = await _adb_cmd(["pull", remote, str(validated_local)], device=device, timeout=120)
-        return text_result({"success": proc.returncode == 0, "output": proc.stdout.strip(), "local_path": str(validated_local)})
+        return text_result({
+            "success": proc.returncode == 0,
+            "output": proc.stdout.strip(),
+            "local_path": str(validated_local),
+        })
 
     elif action == "shell":
         shell_cmd = arguments.get("shell_command")
@@ -278,9 +282,8 @@ async def handle_device(arguments: dict[str, Any]) -> list[dict[str, Any]]:
             return error_result(f"Screenshot failed: {proc.stderr}")
 
         import tempfile
-        tmp = tempfile.NamedTemporaryFile(suffix=".png", prefix="revula_screenshot_", delete=False)
-        local = tmp.name
-        tmp.close()
+        with tempfile.NamedTemporaryFile(suffix=".png", prefix="revula_screenshot_", delete=False) as tmp:
+            local = tmp.name
         await _adb_cmd(["pull", remote, local], device=device)
         return text_result({"screenshot_path": local, "remote_path": remote})
 

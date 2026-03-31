@@ -201,9 +201,8 @@ async def handle_quark(arguments: dict[str, Any]) -> list[dict[str, Any]]:
         )
 
     # Use NamedTemporaryFile (secure) instead of mktemp (TOCTOU race)
-    tmp = tempfile.NamedTemporaryFile(suffix=".json", prefix="revula_quark_", delete=False)
-    output_file = tmp.name
-    tmp.close()
+    with tempfile.NamedTemporaryFile(suffix=".json", prefix="revula_quark_", delete=False) as tmp:
+        output_file = tmp.name
     cmd = [quark, "-a", str(file_path), "-o", output_file, "-j"]
     proc = await safe_subprocess(cmd, timeout=300)
 
