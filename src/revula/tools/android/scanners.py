@@ -168,7 +168,7 @@ async def handle_quark(arguments: dict[str, Any]) -> list[dict[str, Any]]:
 
     # Try Python API first
     try:
-        from quark.report import Report  # type: ignore[import-not-found]
+        from quark.report import Report
 
         report = Report()
         report.analysis(str(file_path))
