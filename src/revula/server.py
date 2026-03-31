@@ -148,7 +148,7 @@ def _safe_import(module_name: str) -> None:
 # ---------------------------------------------------------------------------
 
 
-@app.list_tools()  # type: ignore[misc, no-untyped-call]
+@app.list_tools()  # type: ignore[no-untyped-call,untyped-decorator]
 async def list_tools() -> list[Tool]:
     """Return all registered tools as MCP Tool objects."""
     tools: list[Tool] = []
@@ -163,7 +163,7 @@ async def list_tools() -> list[Tool]:
     return tools
 
 
-@app.call_tool()  # type: ignore[misc]
+@app.call_tool()  # type: ignore[untyped-decorator]
 async def call_tool(name: str, arguments: dict[str, Any] | None) -> list[TextContent | EmbeddedResource]:
     """Dispatch a tool call to the appropriate handler."""
     if arguments is None:
@@ -229,7 +229,7 @@ def _convert_results(result: list[dict[str, Any]]) -> list[TextContent | Embedde
     return contents
 
 
-@app.list_resources()  # type: ignore[misc, no-untyped-call]
+@app.list_resources()  # type: ignore[no-untyped-call,untyped-decorator]
 async def list_resources() -> list[Resource]:
     """List all binary resources tracked by the session manager."""
     resources_data = await SESSION_MANAGER.list_binary_resources()
@@ -245,7 +245,7 @@ async def list_resources() -> list[Resource]:
     return resources
 
 
-@app.read_resource()  # type: ignore[misc, no-untyped-call]
+@app.read_resource()  # type: ignore[no-untyped-call,untyped-decorator]
 async def read_resource(uri: str) -> bytes:
     """Read the content of a binary resource."""
     return await SESSION_MANAGER.read_resource(uri)
