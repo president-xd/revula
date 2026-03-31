@@ -18,7 +18,7 @@ import time
 import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -31,14 +31,14 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
-class SessionType(str, Enum):
+class SessionType(StrEnum):
     DEBUGGER = "debugger"
     FRIDA = "frida"
     ANALYSIS = "analysis"
     R2 = "r2"
 
 
-class SessionState(str, Enum):
+class SessionState(StrEnum):
     ACTIVE = "active"
     PAUSED = "paused"
     TERMINATED = "terminated"
