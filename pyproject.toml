@@ -7,7 +7,7 @@ name = "revula"
 version = "0.1.0"
 description = "Universal Reverse Engineering MCP Server — connects to Claude Desktop, VS Code, and custom tooling"
 readme = "README.md"
-license = "MIT"
+license = "GPL-3.0-or-later"
 requires-python = ">=3.11"
 authors = [
     { name = "Revula Contributors" },
@@ -26,7 +26,7 @@ classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
@@ -82,6 +82,7 @@ include = ["src/revula", "README.md", "LICENSE"]
 target-version = "py311"
 line-length = 120
 src = ["src"]
+exclude = ["src/revula/scripts/*.py"]  # Ghidra Jython scripts use built-in globals
 
 [tool.ruff.lint]
 select = [
