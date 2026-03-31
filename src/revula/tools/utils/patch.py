@@ -14,8 +14,10 @@ from __future__ import annotations
 import logging
 import shutil
 import time
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 from revula.sandbox import validate_binary_path, validate_path
 from revula.tools import TOOL_REGISTRY, error_result, text_result
