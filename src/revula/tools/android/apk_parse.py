@@ -64,7 +64,7 @@ def _shannon_entropy(data: bytes) -> float:
 
 def _parse_with_androguard(apk_path: str) -> dict[str, Any]:
     """Parse APK using androguard Python library."""
-    from androguard.core.apk import APK  # type: ignore[import-not-found]
+    from androguard.core.apk import APK
 
     a = APK(apk_path)
     result: dict[str, Any] = {}
