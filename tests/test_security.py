@@ -14,7 +14,6 @@ import errno
 import os
 import tempfile
 from pathlib import Path
-from typing import Any
 
 import pytest
 
@@ -23,7 +22,6 @@ from revula.sandbox import (
     safe_subprocess_sync,
     validate_path,
 )
-
 
 # ---------------------------------------------------------------------------
 # validate_path — Null byte injection
@@ -34,15 +32,15 @@ class TestValidatePathNullByte:
     """Null byte injection must be rejected."""
 
     def test_null_byte_in_filename(self, tmp_dir: Path) -> None:
-        with pytest.raises(PathValidationError, match="[Nn]ull"):
+        with pytest.raises(PathValidationError, match=r"[Nn]ull"):
             validate_path(str(tmp_dir / "file\x00.txt"), [str(tmp_dir)])
 
     def test_null_byte_in_directory(self, tmp_dir: Path) -> None:
-        with pytest.raises(PathValidationError, match="[Nn]ull"):
+        with pytest.raises(PathValidationError, match=r"[Nn]ull"):
             validate_path(str(tmp_dir) + "\x00/file.txt", [str(tmp_dir)])
 
     def test_null_byte_embedded_mid_path(self, tmp_dir: Path) -> None:
-        with pytest.raises(PathValidationError, match="[Nn]ull"):
+        with pytest.raises(PathValidationError, match=r"[Nn]ull"):
             validate_path(f"{tmp_dir}/a\x00b/c.bin", [str(tmp_dir)])
 
 
@@ -110,7 +108,7 @@ class TestValidatePathSizeLimit:
         target = tmp_dir / "big.bin"
         # Write 2MB
         target.write_bytes(b"\x00" * (2 * 1024 * 1024))
-        with pytest.raises(PathValidationError, match="[Ss]ize|[Ll]arge|[Ee]xceed"):
+        with pytest.raises(PathValidationError, match=r"[Ss]ize|[Ll]arge|[Ee]xceed"):
             validate_path(str(target), [str(tmp_dir)], max_size_mb=1)
 
     def test_no_limit_allows_any_size(self, tmp_dir: Path) -> None:
@@ -140,7 +138,7 @@ class TestValidatePathExtensions:
     def test_disallowed_extension_rejected(self, tmp_dir: Path) -> None:
         target = tmp_dir / "test.exe"
         target.write_bytes(b"\x00")
-        with pytest.raises(PathValidationError, match="[Ee]xtension|[Tt]ype|[Nn]ot allowed"):
+        with pytest.raises(PathValidationError, match=r"[Ee]xtension|[Tt]ype|[Nn]ot allowed"):
             validate_path(
                 str(target), [str(tmp_dir)], allowed_extensions=[".bin", ".elf"]
             )
@@ -190,7 +188,7 @@ class TestSafeSubprocessSync:
     """safe_subprocess_sync must reject string commands to prevent shell injection."""
 
     def test_string_command_raises_type_error(self) -> None:
-        with pytest.raises(TypeError, match="[Ll]ist|[Ss]tring|[Ss]hell"):
+        with pytest.raises(TypeError, match=r"[Ll]ist|[Ss]tring|[Ss]hell"):
             safe_subprocess_sync("echo hello")  # type: ignore[arg-type]
 
     def test_list_command_succeeds(self) -> None:
@@ -388,7 +386,6 @@ class TestVulnerabilityHardeningV3:
 
     def test_shellcode_emulate_no_injection(self) -> None:
         """Shellcode emulator should reject non-hex input."""
-        import re as regex_mod
         # Read the shellcode.py file and verify it validates hex input
         src_file = Path(__file__).parent.parent / "src" / "revula" / "tools" / "exploit" / "shellcode.py"
         text = src_file.read_text()
