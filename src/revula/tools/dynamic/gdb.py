@@ -578,7 +578,7 @@ async def handle_bp_delete(arguments: dict[str, Any]) -> list[dict[str, Any]]:
 async def handle_bp_list(arguments: dict[str, Any]) -> list[dict[str, Any]]:
     """List breakpoints."""
     session_manager: SessionManager = arguments["__session_manager__"]
-    session, gdb = await _get_or_create_gdb_session(session_manager, arguments["session_id"])
+    _session, gdb = await _get_or_create_gdb_session(session_manager, arguments["session_id"])
 
     result = await gdb.send_command("-break-list")
     return text_result({"breakpoints": result.get("data", {})})

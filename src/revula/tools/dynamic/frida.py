@@ -492,7 +492,7 @@ async def handle_frida_memory_scan(arguments: dict[str, Any]) -> list[dict[str, 
         return error_result("frida not installed")
 
     session_manager: SessionManager = arguments["__session_manager__"]
-    session, frida_sess = await _get_frida_session(session_manager, arguments["session_id"])
+    _session, frida_sess = await _get_frida_session(session_manager, arguments["session_id"])
 
     pattern = arguments["pattern"]
     module = arguments.get("module")
@@ -577,7 +577,7 @@ async def handle_frida_dump(arguments: dict[str, Any]) -> list[dict[str, Any]]:
         return error_result("frida not installed")
 
     session_manager: SessionManager = arguments["__session_manager__"]
-    session, frida_sess = await _get_frida_session(session_manager, arguments["session_id"])
+    _session, frida_sess = await _get_frida_session(session_manager, arguments["session_id"])
 
     address = arguments["address"]
     size = arguments["size"]
@@ -658,7 +658,7 @@ async def handle_frida_modules(arguments: dict[str, Any]) -> list[dict[str, Any]
         return error_result("frida not installed")
 
     session_manager: SessionManager = arguments["__session_manager__"]
-    session, frida_sess = await _get_frida_session(session_manager, arguments["session_id"])
+    _session, frida_sess = await _get_frida_session(session_manager, arguments["session_id"])
 
     script_code = """
     var modules = Process.enumerateModules();
