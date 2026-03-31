@@ -602,7 +602,8 @@ async def handle_pe_rebuild(arguments: dict[str, Any]) -> list[dict[str, Any]]:
         binary.optional_header.remove(lief.PE.OptionalHeader.DLL_CHARACTERISTICS.NO_SEH)
 
     # Write rebuilt PE
-    builder = lief.PE.Builder(binary)
+    config = lief.PE.Builder.config_t()
+    builder = lief.PE.Builder(binary, config)
     builder.build()
     builder.write(output_path)
 
