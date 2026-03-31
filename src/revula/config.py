@@ -261,7 +261,7 @@ def _probe_python_module(module_name: str) -> bool:
     import importlib.util
 
     # Fallback mapping: if primary module is missing, try alternative
-    _FALLBACKS: dict[str, str] = {
+    fallbacks: dict[str, str] = {
         "ssdeep": "ppdeep",  # pure-Python ssdeep alternative
     }
 
@@ -272,7 +272,7 @@ def _probe_python_module(module_name: str) -> bool:
         pass
 
     # Try fallback
-    alt = _FALLBACKS.get(module_name)
+    alt = fallbacks.get(module_name)
     if alt:
         try:
             return importlib.util.find_spec(alt) is not None
