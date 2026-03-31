@@ -382,3 +382,510 @@ class TestFormatStringHelpers:
         assert "hex" in result
         # 32-bit packing should produce 4-byte addresses
         assert len(result["hex"]) > 0
+
+
+# ---------------------------------------------------------------------------
+# Utils module tests
+# ---------------------------------------------------------------------------
+
+
+class TestCryptoUtils:
+    """Test crypto utility helpers."""
+
+    def test_crypto_constants_populated(self) -> None:
+        from revula.tools.utils.crypto import CRYPTO_CONSTANTS
+
+        assert len(CRYPTO_CONSTANTS) > 0
+        for name, pattern, algo in CRYPTO_CONSTANTS:
+            assert isinstance(name, str)
+            assert isinstance(pattern, bytes)
+            assert isinstance(algo, str)
+
+    def test_scan_crypto_constants_aes_sbox(self) -> None:
+        from revula.tools.utils.crypto import scan_crypto_constants
+
+        # Include AES S-box start bytes
+        data = b"\x00" * 100 + bytes([0x63, 0x7C, 0x77, 0x7B, 0xF2, 0x6B, 0x6F, 0xC5,
+                                       0x30, 0x01, 0x67, 0x2B, 0xFE, 0xD7, 0xAB, 0x76])
+        result = scan_crypto_constants(data)
+        assert any("AES" in r["algorithm"] for r in result)
+
+    def test_scan_crypto_constants_salsa(self) -> None:
+        from revula.tools.utils.crypto import scan_crypto_constants
+
+        data = b"expand 32-byte k" + b"\x00" * 50
+        result = scan_crypto_constants(data)
+        assert any("Salsa" in r["algorithm"] or "ChaCha" in r["algorithm"] for r in result)
+
+
+class TestHexUtils:
+    """Test hex utility helpers."""
+
+    def test_hexdump_basic(self) -> None:
+        from revula.tools.utils.hex import hexdump
+
+        data = b"Hello, World!"
+        output = hexdump(data)
+        assert "48 65 6c 6c 6f" in output  # "Hello"
+        assert "|Hello" in output
+
+    def test_hexdump_with_offset(self) -> None:
+        from revula.tools.utils.hex import hexdump
+
+        data = b"AAAA" + b"Hello"
+        output = hexdump(data, offset=4)
+        assert "Hello" in output
+        assert "AAAA" not in output
+
+    def test_pattern_to_regex_basic(self) -> None:
+        from revula.tools.utils.hex import pattern_to_regex
+
+        regex = pattern_to_regex("55 8B EC")
+        assert regex is not None
+
+    def test_pattern_to_regex_wildcard(self) -> None:
+        from revula.tools.utils.hex import pattern_to_regex
+
+        regex = pattern_to_regex("55 ?? EC")
+        # Should create a regex with wildcard
+        assert regex is not None
+
+    def test_search_pattern_finds_match(self) -> None:
+        from revula.tools.utils.hex import search_pattern
+
+        data = b"\x00\x00\x55\x8B\xEC\x00\x00"
+        results = search_pattern(data, "55 8B EC")
+        assert len(results) > 0
+        assert results[0]["offset"] == 2
+
+    def test_search_pattern_wildcard_match(self) -> None:
+        from revula.tools.utils.hex import search_pattern
+
+        data = b"\x00\x55\xAA\xEC\x00"
+        results = search_pattern(data, "55 ?? EC")
+        assert len(results) > 0
+
+
+# ---------------------------------------------------------------------------
+# Deobfuscation module tests
+# ---------------------------------------------------------------------------
+
+
+class TestDeobfuscationHelpers:
+    """Test deobfuscation helper functions."""
+
+    def test_xor_decode_single_byte(self) -> None:
+        from revula.tools.deobfuscation.deobfuscate import _xor_decode
+
+        data = bytes([0x41 ^ 0x55, 0x42 ^ 0x55])  # XOR "AB" with 0x55
+        result = _xor_decode(data, bytes([0x55]))
+        assert result == b"AB"
+
+    def test_xor_decode_multi_byte(self) -> None:
+        from revula.tools.deobfuscation.deobfuscate import _xor_decode
+
+        key = b"KEY"
+        plaintext = b"HELLO!"
+        encoded = bytes(b ^ key[i % len(key)] for i, b in enumerate(plaintext))
+        result = _xor_decode(encoded, key)
+        assert result == plaintext
+
+    def test_rot_decode_basic(self) -> None:
+        from revula.tools.deobfuscation.deobfuscate import _rot_decode
+
+        # ROT13
+        data = b"URYYB"  # "HELLO" with ROT13
+        result = _rot_decode(data, 13)
+        assert result == b"HELLO"
+
+    def test_rc4_decrypt_roundtrip(self) -> None:
+        from revula.tools.deobfuscation.deobfuscate import _rc4_decrypt
+
+        key = b"secret"
+        plaintext = b"Hello, World!"
+        # RC4 is symmetric, so encrypt = decrypt
+        encrypted = _rc4_decrypt(plaintext, key)
+        decrypted = _rc4_decrypt(encrypted, key)
+        assert decrypted == plaintext
+
+    def test_is_printable_ratio(self) -> None:
+        from revula.tools.deobfuscation.deobfuscate import _is_printable_ratio
+
+        printable_data = b"Hello World"
+        assert _is_printable_ratio(printable_data)
+
+        binary_data = bytes(range(256))
+        assert not _is_printable_ratio(binary_data)
+
+    def test_base64_decode(self) -> None:
+        from revula.tools.deobfuscation.deobfuscate import _base64_decode
+
+        result = _base64_decode("SGVsbG8gV29ybGQ=")
+        assert result == b"Hello World"
+
+
+# ---------------------------------------------------------------------------
+# Unpacking module tests
+# ---------------------------------------------------------------------------
+
+
+class TestUnpackingHelpers:
+    """Test unpacking helper functions."""
+
+    def test_packer_signatures_populated(self) -> None:
+        from revula.tools.unpacking.unpack import PACKER_SIGNATURES
+
+        assert len(PACKER_SIGNATURES) > 0
+        for sig in PACKER_SIGNATURES:
+            assert "name" in sig
+            assert "signatures" in sig
+            assert "confidence" in sig
+
+    def test_compute_entropy_zeros(self) -> None:
+        from revula.tools.unpacking.unpack import _compute_entropy
+
+        data = bytes(256)  # All zeros
+        entropy = _compute_entropy(data)
+        assert entropy == 0.0
+
+    def test_compute_entropy_random(self) -> None:
+        from revula.tools.unpacking.unpack import _compute_entropy
+
+        # High entropy data (all different bytes)
+        data = bytes(range(256))
+        entropy = _compute_entropy(data)
+        assert entropy > 7.0  # Should be close to 8 (max)
+
+    def test_compute_entropy_text(self) -> None:
+        from revula.tools.unpacking.unpack import _compute_entropy
+
+        data = b"The quick brown fox jumps over the lazy dog"
+        entropy = _compute_entropy(data)
+        assert 3.0 < entropy < 5.0  # English text entropy range
+
+
+# ---------------------------------------------------------------------------
+# Binary formats module tests
+# ---------------------------------------------------------------------------
+
+
+class TestBinaryFormatsRegistration:
+    """Test binary format tools registration."""
+
+    def test_parse_binary_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_parse_binary") is not None
+
+    def test_dotnet_analyze_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_dotnet_analyze") is not None
+
+    def test_java_analyze_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_java_analyze") is not None
+
+    def test_wasm_analyze_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_wasm_analyze") is not None
+
+
+# ---------------------------------------------------------------------------
+# Symbolic execution module tests
+# ---------------------------------------------------------------------------
+
+
+class TestSymbolicRegistration:
+    """Test symbolic execution tools registration."""
+
+    def test_angr_explore_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_angr_explore") is not None
+
+    def test_angr_cfg_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_angr_cfg") is not None
+
+    def test_angr_vuln_scan_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_angr_vuln_scan") is not None
+
+    def test_triton_dse_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_triton_dse") is not None
+
+
+# ---------------------------------------------------------------------------
+# Dynamic tools registration tests
+# ---------------------------------------------------------------------------
+
+
+class TestDynamicToolsRegistration:
+    """Test dynamic analysis tools registration."""
+
+    def test_debugger_launch_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_debugger_launch") is not None
+
+    def test_debugger_attach_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_debugger_attach") is not None
+
+    def test_bp_set_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_bp_set") is not None
+
+    def test_bp_list_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_bp_list") is not None
+
+    def test_bp_delete_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_bp_delete") is not None
+
+    def test_step_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_step") is not None
+
+    def test_stepi_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_stepi") is not None
+
+    def test_continue_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_continue") is not None
+
+    def test_registers_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_registers") is not None
+
+    def test_backtrace_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_backtrace") is not None
+
+    def test_memory_read_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_memory_read") is not None
+
+    def test_memory_write_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_memory_write") is not None
+
+    def test_coverage_collect_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_coverage_collect") is not None
+
+    def test_coverage_analyze_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_coverage_analyze") is not None
+
+    def test_frida_spawn_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_frida_spawn") is not None
+
+    def test_frida_attach_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_frida_attach") is not None
+
+    def test_frida_script_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_frida_script") is not None
+
+    def test_frida_intercept_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_frida_intercept") is not None
+
+    def test_frida_memory_scan_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_frida_memory_scan") is not None
+
+
+# ---------------------------------------------------------------------------
+# Static tools registration tests
+# ---------------------------------------------------------------------------
+
+
+class TestStaticToolsRegistration:
+    """Test static analysis tools registration."""
+
+    def test_disassemble_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_disassemble") is not None
+
+    def test_decompile_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_decompile") is not None
+
+    def test_symbols_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_symbols") is not None
+
+    def test_extract_strings_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_extract_strings") is not None
+
+    def test_yara_scan_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_yara_scan") is not None
+
+    def test_capa_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_capa") is not None
+
+    def test_entropy_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_entropy") is not None
+
+
+# ---------------------------------------------------------------------------
+# Platform tools registration tests
+# ---------------------------------------------------------------------------
+
+
+class TestPlatformToolsRegistration:
+    """Test platform-specific tools registration."""
+
+    def test_rizin_analyze_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_rizin_analyze") is not None
+
+    def test_rizin_diff_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_rizin_diff") is not None
+
+    def test_gdb_heap_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_gdb_heap") is not None
+
+    def test_gdb_rop_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_gdb_rop") is not None
+
+    def test_qemu_run_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_qemu_run") is not None
+
+    def test_qemu_system_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_qemu_system") is not None
+
+
+# ---------------------------------------------------------------------------
+# Android tools registration tests
+# ---------------------------------------------------------------------------
+
+
+class TestAndroidToolsRegistration:
+    """Test Android tools registration."""
+
+    def test_apk_parse_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_android_apk_parse") is not None
+
+    def test_dex_analyze_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_android_dex_analyze") is not None
+
+    def test_android_decompile_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_android_decompile") is not None
+
+    def test_android_device_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_android_device") is not None
+
+    def test_smali_disasm_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_android_smali_disasm") is not None
+
+    def test_smali_assemble_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_android_smali_assemble") is not None
+
+    def test_android_repack_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_android_repack") is not None
+
+    def test_android_frida_attach_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_android_frida_attach") is not None
+
+    def test_android_hook_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_android_hook") is not None
+
+    def test_android_traffic_intercept_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_android_traffic_intercept") is not None
+
+
+# ---------------------------------------------------------------------------
+# Utils tools registration tests
+# ---------------------------------------------------------------------------
+
+
+class TestUtilsToolsRegistration:
+    """Test utility tools registration."""
+
+    def test_hash_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_hash") is not None
+
+    def test_xor_analysis_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_xor_analysis") is not None
+
+    def test_crypto_constants_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_crypto_constants") is not None
+
+    def test_hexdump_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_hexdump") is not None
+
+    def test_pattern_search_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_pattern_search") is not None
+
+    def test_patch_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_patch") is not None
+
+    def test_pcap_analyze_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_pcap_analyze") is not None
+
+
+# ---------------------------------------------------------------------------
+# Unpacking tools registration tests
+# ---------------------------------------------------------------------------
+
+
+class TestUnpackingToolsRegistration:
+    """Test unpacking tools registration."""
+
+    def test_detect_packer_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_detect_packer") is not None
+
+    def test_unpack_upx_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_unpack_upx") is not None
+
+    def test_dynamic_unpack_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_dynamic_unpack") is not None
+
+    def test_pe_rebuild_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_pe_rebuild") is not None
+
+
+# ---------------------------------------------------------------------------
+# Deobfuscation tools registration tests
+# ---------------------------------------------------------------------------
+
+
+class TestDeobfuscationToolsRegistration:
+    """Test deobfuscation tools registration."""
+
+    def test_deobfuscate_strings_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_deobfuscate_strings") is not None
+
+    def test_detect_cff_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_detect_cff") is not None
+
+    def test_detect_opaque_predicates_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_detect_opaque_predicates") is not None
+
+
+# ---------------------------------------------------------------------------
+# Tool definition quality tests
+# ---------------------------------------------------------------------------
+
+
+class TestToolDefinitionQuality:
+    """Test that all tool definitions are well-formed."""
+
+    def test_all_tools_have_description(self) -> None:
+        for name in TOOL_REGISTRY.names():
+            defn = TOOL_REGISTRY.get(name)
+            assert defn is not None
+            assert defn.description, f"{name} has no description"
+            assert len(defn.description) > 10, f"{name} description too short"
+
+    def test_all_tools_have_input_schema(self) -> None:
+        for name in TOOL_REGISTRY.names():
+            defn = TOOL_REGISTRY.get(name)
+            assert defn is not None
+            assert isinstance(defn.input_schema, dict), f"{name} missing input_schema"
+            assert "type" in defn.input_schema, f"{name} input_schema missing type"
+
+    def test_all_tools_have_category(self) -> None:
+        for name in TOOL_REGISTRY.names():
+            defn = TOOL_REGISTRY.get(name)
+            assert defn is not None
+            assert defn.category, f"{name} has no category"
+
+    def test_tool_names_follow_convention(self) -> None:
+        for name in TOOL_REGISTRY.names():
+            assert name.startswith("re_"), f"{name} doesn't follow re_ prefix convention"
+            assert name == name.lower(), f"{name} should be lowercase"
+
+    def test_tool_count_is_expected(self) -> None:
+        count = TOOL_REGISTRY.count()
+        assert count >= 100, f"Expected at least 100 tools, got {count}"
+        assert count <= 150, f"Unexpected tool count: {count}"
+
+
+# ---------------------------------------------------------------------------
+# Admin tools tests
+# ---------------------------------------------------------------------------
+
+
+class TestAdminTools:
+    """Test admin tools."""
+
+    def test_admin_status_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_admin_status") is not None
+
+    def test_admin_cache_registered(self) -> None:
+        assert TOOL_REGISTRY.get("re_admin_cache") is not None
