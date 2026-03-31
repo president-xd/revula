@@ -198,7 +198,7 @@ async def _disasm_r2(
     loop = asyncio.get_running_loop()
 
     # Map our arch names to r2 asm.arch + asm.bits
-    _ARCH_MAP: dict[str, tuple[str, int]] = {
+    arch_map: dict[str, tuple[str, int]] = {
         "x86": ("x86", 32),
         "x64": ("x86", 64),
         "arm": ("arm", 32),
@@ -218,8 +218,8 @@ async def _disasm_r2(
             r2.cmd("aaa")  # Analyze all
 
             # Map arch names to r2 format (e.g. "x64" -> arch=x86, bits=64)
-            if arch and arch in _ARCH_MAP:
-                r2_arch, r2_bits = _ARCH_MAP[arch]
+            if arch and arch in arch_map:
+                r2_arch, r2_bits = arch_map[arch]
                 r2.cmd(f"e asm.arch={r2_arch}")
                 r2.cmd(f"e asm.bits={r2_bits}")
             elif arch:

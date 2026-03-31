@@ -139,7 +139,8 @@ async def _decompile_ghidra(
         # Import and analyze binary
         project_dir.mkdir(parents=True, exist_ok=True)
 
-        cmd = java_base + [
+        cmd = [
+            *java_base,
             str(project_dir),
             project_name,
             "-import", str(binary_path),
@@ -163,7 +164,8 @@ async def _decompile_ghidra(
                 pass  # Script produced output despite non-zero exit
             else:
                 # Try basic analysis without the custom script
-                cmd_basic = java_base + [
+                cmd_basic = [
+                    *java_base,
                     str(project_dir),
                     project_name,
                     "-import", str(binary_path),
@@ -185,7 +187,8 @@ async def _decompile_ghidra(
         # Process existing project
         env = dict(os.environ)
 
-        cmd = java_base + [
+        cmd = [
+            *java_base,
             str(project_dir),
             project_name,
             "-process", binary_path.name,
