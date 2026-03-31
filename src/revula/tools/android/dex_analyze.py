@@ -238,8 +238,8 @@ def _compute_obfuscation_score(
 
 def _analyze_with_androguard(apk_path: str) -> dict[str, Any]:
     """Deep DEX analysis using androguard."""
-    from androguard.core.apk import APK  # type: ignore[import-not-found]
-    from androguard.core.dex import DEX  # type: ignore[import-not-found]
+    from androguard.core.apk import APK
+    from androguard.core.dex import DEX
 
     a = APK(apk_path)
     result: dict[str, Any] = {
