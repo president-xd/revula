@@ -196,7 +196,7 @@ def generate_toml(
         "# Revula Configuration",
         f"# Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
         "#",
-        "# Docs: https://github.com/revula/revula#configuration",
+        "# Docs: https://github.com/president-xd/revula#configuration",
         "",
         "[security]",
     ]
