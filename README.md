@@ -69,7 +69,10 @@ Connect Claude Desktop, MCP-compatible IDEs, or custom tooling to a complete rev
 - **GDB Enhanced:** Heap analysis, ROP gadget finding, exploit helpers (pattern create/find, checksec)
 - **QEMU:** User-mode emulation (4 actions) and full system emulation (5 actions)
 
-### Exploit Development (2 tools)
+### Exploit Development (11 tools)
+- **ROP Chain Builder:** Multi-architecture gadget finding (x86/x64/ARM/ARM64) with semantic classification, automatic chain generation for execve/mprotect/syscalls, bad-char avoidance, and pwntools script generation
+- **Heap Exploitation:** Malloc chunk analysis, bin classification (tcache/fastbin/smallbin/largebin), fake chunk generation, safe-linking encode/decode for glibc 2.32+, and technique templates (House of Force, Tcache Poisoning, Fastbin Dup, Unsafe Unlink)
+- **Libc Database:** Symbol/offset extraction, libc identification from leaked addresses, ASLR defeat helpers (base calculation, GOT-to-libc, PLT-to-GOT), and one-gadget RCE finder
 - **Shellcode:** Generation, encoding, bad-char analysis, extraction, and emulation testing
 - **Format String:** Offset calculation, write payload generation, GOT overwrite, and address leaking
 
@@ -259,7 +262,7 @@ If using `uvx` (zero-install):
 }
 ```
 
-**After editing:** Quit and reopen Claude Desktop. Check the MCP tools icon to confirm 107 tools are available.
+**After editing:** Quit and reopen Claude Desktop. Check the MCP tools icon to confirm 116 tools are available.
 
 ---
 
@@ -627,7 +630,7 @@ revula degrades gracefully. Tools that depend on missing backends return clear e
 | **Dynamic** | | `gdb`, `lldb` | `frida` |
 | **Android** | APK manifest/DEX parsing (via zipfile) | `jadx`, `apktool`, `adb`, `zipalign`, `apksigner`, `tcpdump` | `frida`, `quark-engine` |
 | **Platform** | | `rizin`, `radare2`, `gdb`, `qemu-user`, `qemu-system-*` | `r2pipe`, `binaryninja` |
-| **Exploit** | Format string calculator | | `pwntools`, `keystone-engine` |
+| **Exploit** | ROP chain builder, heap analysis, libc database, format string helpers | | `capstone` ✓, `pwntools`, `keystone-engine` |
 | **Anti-Analysis** | Pattern scanning (via `lief` + `capstone`) | | |
 | **Malware** | File hashing, IoC extraction, risk scoring | | `yara` ✓, `ssdeep`, `tlsh` |
 | **Firmware** | | `binwalk`, `sasquatch` | |
@@ -697,7 +700,7 @@ src/revula/                     # 19,400+ LOC across 63 Python files
     ├── dynamic/                # 4 files: GDB, LLDB, Frida, coverage
     ├── android/                # 9 files: APK, DEX, decompile, native, device, frida, traffic, repack, scanners
     ├── platform/               # 3 files: Rizin, GDB-enhanced, QEMU
-    ├── exploit/                # 2 files: shellcode generation, format string exploitation
+    ├── exploit/                # 5 files: ROP builder, heap exploitation, libc database, shellcode, format strings
     ├── antianalysis/           # 1 file:  anti-debug/VM detection and bypass generation
     ├── malware/                # 1 file:  triage, sandbox queries, YARA gen, config extraction
     ├── firmware/               # 1 file:  extraction, vuln scanning, base address detection
@@ -779,7 +782,7 @@ revula operates on the principle that **user-supplied arguments are untrusted**.
 ## Testing
 
 ```bash
-# Run all 161 tests
+# Run all 283 tests
 python -m pytest tests/ --timeout=30
 
 # With coverage
@@ -793,6 +796,7 @@ python -m pytest tests/test_infra.py -v      # Cache, rate limiter, sessions
 python -m pytest tests/test_core.py -v       # Config, sandbox, tool registry
 python -m pytest tests/test_static.py -v     # Static analysis tools
 python -m pytest tests/test_android.py -v    # Android module tests
+python -m pytest tests/test_exploit.py -v    # ROP, heap, libc tools (32 tests)
 python -m pytest tests/test_tools_new.py -v  # Exploit, malware, firmware, protocol, etc.
 python -m pytest tests/test_security.py -v   # Security invariant tests
 
@@ -900,6 +904,18 @@ Claude can call:
 3. `re_malware_yara_gen` to generate a YARA rule for the sample
 4. `re_malware_sandbox` to query VirusTotal/Hybrid Analysis
 
+### Exploit Development
+
+Ask Claude: *"Build a ROP chain to call execve('/bin/sh') in this binary"*
+
+Claude can orchestrate:
+1. `re_rop_gadgets` to find useful gadgets (pop rdi, pop rsi, syscall) with semantic classification
+2. `re_rop_chain` to automatically build an execve chain with proper register setup
+3. `re_libc_offsets` to extract system/execve/binsh offsets from libc
+4. `re_aslr_defeat` to calculate base addresses from leaked pointers
+5. `re_heap_chunk` to analyze malloc chunks and bin classification for heap exploits
+6. `re_heap_technique` to get templates for House of Force, Tcache Poisoning, etc.
+
 ---
 
 ## Performance & Limitations
@@ -915,6 +931,9 @@ With just the core install (`pip install -e .`), you get full functionality for:
 - Binary patching
 - Hex dump and pattern search
 - File hashing (MD5, SHA-1, SHA-256)
+- ROP gadget finding and chain building (via Capstone)
+- Heap exploitation helpers (chunk analysis, bin classification, safe-linking)
+- Libc database tools (symbol extraction, offset calculation, ASLR defeat)
 - Format string payload calculation
 - XOR/ROT/Base64 deobfuscation
 - Anti-analysis pattern detection
