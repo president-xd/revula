@@ -115,6 +115,9 @@ def _register_all_tools() -> None:
     # Exploit development
     _safe_import("revula.tools.exploit.shellcode")
     _safe_import("revula.tools.exploit.format_string")
+    _safe_import("revula.tools.exploit.rop_builder")
+    _safe_import("revula.tools.exploit.libc_database")
+    _safe_import("revula.tools.exploit.heap_analysis")
 
     # Anti-analysis detection & bypass
     _safe_import("revula.tools.antianalysis.detect_bypass")
