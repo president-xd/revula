@@ -67,10 +67,10 @@ revula = "revula.server:main"
 revula = "revula.server:app"
 
 [project.urls]
-Homepage = "https://github.com/revula/revula"
-Documentation = "https://github.com/revula/revula#readme"
-Repository = "https://github.com/revula/revula"
-Issues = "https://github.com/revula/revula/issues"
+Homepage = "https://github.com/president-xd/revula"
+Documentation = "https://github.com/president-xd/revula#readme"
+Repository = "https://github.com/president-xd/revula"
+Issues = "https://github.com/president-xd/revula/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/revula"]
