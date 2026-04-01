@@ -10,6 +10,7 @@ Connect Claude Desktop, MCP-compatible IDEs, or custom tooling to a complete rev
 
 - [Features](#features)
 - [Quick Start](#quick-start)
+  - [Docker Installation](#docker-installation-alternative)
 - [IDE & Client Setup](#ide--client-setup)
   - [How It Connects (Important)](#how-it-connects-important)
   - [Claude Desktop](#1-claude-desktop)
@@ -166,6 +167,51 @@ python -c "from revula.config import get_config, format_availability_report; pri
 ```
 
 This prints a table showing which external tools and Python modules are detected on your system.
+
+### Docker Installation (Alternative)
+
+Revula can be run in Docker for isolated environments with all dependencies pre-configured:
+
+```bash
+# Build the Docker image
+docker build -t revula:latest .
+
+# Quick test
+docker run --rm revula:latest --version
+docker run --rm revula:latest --list-tools
+
+# Run in stdio mode (for local MCP clients)
+docker run -i --rm -v $(pwd)/workspace:/workspace revula:latest
+
+# Run in SSE mode (for remote access)
+docker run -d -p 8000:8000 -v $(pwd)/workspace:/workspace \
+  revula:latest --sse --host 0.0.0.0 --port 8000
+
+# Using docker-compose (recommended)
+docker-compose --profile sse up -d
+```
+
+**What's included in the Docker image:**
+- All core Python dependencies (capstone, LIEF, pefile, yara)
+- angr symbolic execution engine
+- Frida dynamic instrumentation
+- Ghidra headless analyzer
+- GDB, radare2, rizin, binutils
+- ADB and Android tools (apktool, jadx)
+- FLARE tools (FLOSS, capa)
+- Network analysis tools (tcpdump, tshark)
+
+**Testing the Docker build:**
+```bash
+./scripts/docker/test.sh
+```
+
+For complete Docker documentation including configuration, volumes, security, and troubleshooting, see **[DOCKER.md](DOCKER.md)**.
+
+**Note on Docker vs Native:**
+- Docker provides complete isolated environment with all tools pre-installed
+- Native installation offers better performance and direct system access
+- Choose based on your security and portability requirements
 
 ---
 
@@ -857,6 +903,13 @@ All scripts are in `scripts/` and are fully implemented:
 | `scripts/dev/add_tool.py` | Scaffold a new tool module (creates file, registers, adds test) |
 | `scripts/dev/lint_and_type.sh` | Run ruff + mypy |
 | `scripts/utils/download_frida_server.py` | Download frida-server for a target architecture |
+
+### Docker
+
+| Script | Purpose |
+|--------|---------|
+| `scripts/docker/test.sh` | Automated Docker build and testing (tests all tools: Ghidra, angr, Frida) |
+| `scripts/docker/validate.sh` | Docker configuration validation |
 
 ---
 
