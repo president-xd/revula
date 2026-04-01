@@ -1,0 +1,76 @@
+version: '3.8'
+
+services:
+  revula-stdio:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: revula:latest
+    container_name: revula-stdio
+    stdin_open: true
+    tty: true
+    volumes:
+      - ./workspace:/workspace
+      - revula-data:/home/revula/.revula
+    environment:
+      - REVULA_MAX_MEMORY_MB=2048
+      - REVULA_DEFAULT_TIMEOUT=300
+    command: []
+    profiles:
+      - stdio
+
+  revula-sse:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: revula:latest
+    container_name: revula-sse
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./workspace:/workspace
+      - revula-data:/home/revula/.revula
+    environment:
+      - REVULA_MAX_MEMORY_MB=2048
+      - REVULA_DEFAULT_TIMEOUT=300
+    command: ["--sse", "--host", "0.0.0.0", "--port", "8000"]
+    healthcheck:
+      test: ["CMD", "timeout", "2", "bash", "-c", "</dev/tcp/localhost/8000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    profiles:
+      - sse
+
+  revula-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    image: revula:dev
+    container_name: revula-dev
+    stdin_open: true
+    tty: true
+    volumes:
+      - ./src:/app/src
+      - ./tests:/app/tests
+      - ./scripts:/app/scripts
+      - ./workspace:/workspace
+      - revula-data:/home/revula/.revula
+    environment:
+      - REVULA_MAX_MEMORY_MB=4096
+      - REVULA_DEFAULT_TIMEOUT=600
+    working_dir: /app
+    command: ["/bin/bash"]
+    profiles:
+      - dev
+
+volumes:
+  revula-data:
+    driver: local
+
+networks:
+  default:
+    name: revula-network
