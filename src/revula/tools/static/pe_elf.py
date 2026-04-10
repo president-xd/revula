@@ -43,8 +43,8 @@ def compute_file_hashes(data: bytes) -> dict[str, str]:
         t = tlsh.hash(data)
         if t:
             hashes["tlsh"] = t
-    except (ImportError, ValueError):
-        pass
+    except (ImportError, ValueError) as e:
+        logger.debug("TLSH hash unavailable: %s", e)
 
     # ssdeep — fuzzy hash (or ppdeep pure-Python fallback)
     try:
@@ -53,8 +53,8 @@ def compute_file_hashes(data: bytes) -> dict[str, str]:
         except ImportError:
             import ppdeep as _ssdeep  # pure-Python fallback
         hashes["ssdeep"] = _ssdeep.hash(data)
-    except ImportError:
-        pass
+    except ImportError as e:
+        logger.debug("ssdeep/ppdeep hash unavailable: %s", e)
 
     return hashes
 
@@ -66,8 +66,8 @@ def compute_imphash(binary: Any) -> str | None:
 
         if isinstance(binary, _pefile.PE):
             return binary.get_imphash()  # type: ignore[no-any-return]
-    except (ImportError, Exception):
-        pass
+    except (ImportError, Exception) as e:
+        logger.debug("Failed to compute imphash: %s", e)
     return None
 
 
@@ -556,8 +556,8 @@ async def handle_parse_binary(arguments: dict[str, Any]) -> list[dict[str, Any]]
             if ih:
                 hashes["imphash"] = ih
             pe.close()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("pefile imphash extraction failed: %s", e)
 
     # Filter based on flags
     if not arguments.get("include_symbols", True):
