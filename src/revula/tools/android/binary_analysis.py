@@ -204,8 +204,8 @@ def _parse_elf_basic(data: bytes) -> dict[str, Any] | None:
                 sym = data[match_start:end].decode("ascii")
                 if len(sym) > 6 and sym.isascii():
                     jni_exports.append(sym)
-            except Exception:
-                pass
+            except UnicodeDecodeError:
+                continue
         if len(jni_exports) >= 500:
             break
 
