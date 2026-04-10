@@ -1,0 +1,1033 @@
+[
+  {
+    "tool": "re_admin_cache",
+    "status": "ok",
+    "args": {
+      "action": "stats"
+    },
+    "message": ""
+  },
+  {
+    "tool": "re_admin_status",
+    "status": "ok",
+    "args": {},
+    "message": ""
+  },
+  {
+    "tool": "re_android_activity_monitor",
+    "status": "error",
+    "args": {
+      "package_name": "/workspace/audit/binaries/true_elf"
+    },
+    "message": "Failed to get Frida device: device not found"
+  },
+  {
+    "tool": "re_android_apk_parse",
+    "status": "ok",
+    "args": {
+      "apk_path": "/workspace/audit/binaries/sample.apk"
+    },
+    "message": ""
+  },
+  {
+    "tool": "re_android_binary_analysis",
+    "status": "ok",
+    "args": {
+      "apk_path": "/workspace/audit/binaries/sample.apk"
+    },
+    "message": ""
+  },
+  {
+    "tool": "re_android_crypto_monitor",
+    "status": "error",
+    "args": {
+      "package_name": "/workspace/audit/binaries/true_elf"
+    },
+    "message": "Failed to get Frida device: device not found"
+  },
+  {
+    "tool": "re_android_decompile",
+    "status": "error",
+    "args": {
+      "apk_path": "/workspace/audit/binaries/sample.apk"
+    },
+    "message": "No decompiler available. Tried: jadx, cfr, fernflower. Install jadx: https://github.com/skylot/jadx"
+  },
+  {
+    "tool": "re_android_device",
+    "status": "ok",
+    "args": {
+      "action": "list_devices"
+    },
+    "message": ""
+  },
+  {
+    "tool": "re_android_dex_analyze",
+    "status": "ok",
+    "args": {
+      "apk_path": "/workspace/audit/binaries/sample.apk"
+    },
+    "message": ""
+  },
+  {
+    "tool": "re_android_frida_attach",
+    "status": "error",
+    "args": {},
+    "message": "Provide package_name or pid"
+  },
+  {
+    "tool": "re_android_frida_spawn",
+    "status": "error",
+    "args": {
+      "package_name": "/workspace/audit/binaries/true_elf"
+    },
+    "message": "Failed to get Frida device: device not found"
+  },
+  {
+    "tool": "re_android_gadget_inject",
+    "status": "error",
+    "args": {
+      "apk_path": "/workspace/audit/binaries/sample.apk",
+      "gadget_path": "/workspace/audit/binaries/true_elf"
+    },
+    "message": "Decode failed: "
+  },
+  {
+    "tool": "re_android_hook",
+    "status": "error",
+    "args": {
+      "package_name": "/workspace/audit/binaries/true_elf",
+      "hooks": []
+    },
+    "message": "Failed to get Frida device: device not found"
+  },
+  {
+    "tool": "re_android_manifest_vulns",
+    "status": "error",
+    "args": {
+      "apk_path": "/workspace/audit/binaries/sample.apk"
+    },
+    "message": "androguard is required for manifest vulnerability scanning. Install: pip install androguard"
+  },
+  {
+    "tool": "re_android_memory",
+    "status": "error",
+    "args": {
+      "package_name": "/workspace/audit/binaries/true_elf",
+      "action": "list_modules"
+    },
+    "message": "Device not found: device not found"
+  },
+  {
+    "tool": "re_android_mobsf_scan",
+    "status": "error",
+    "args": {
+      "apk_path": "/workspace/audit/binaries/sample.apk"
+    },
+    "message": "MobSF upload failed: <urlopen error [Errno 111] Connection refused>"
+  },
+  {
+    "tool": "re_android_quark",
+    "status": "error",
+    "args": {
+      "apk_path": "/workspace/audit/binaries/sample.apk"
+    },
+    "message": "Tool 're_android_quark' failed: PermissionError: [Errno 13] Permission denied: '/workspace/2026-04-10.quark.log'"
+  },
+  {
+    "tool": "re_android_repack",
+    "status": "error",
+    "args": {
+      "action": "decode"
+    },
+    "message": "apk_path required for decode"
+  },
+  {
+    "tool": "re_android_resources",
+    "status": "ok",
+    "args": {
+      "apk_path": "/workspace/audit/binaries/sample.apk"
+    },
+    "message": ""
+  },
+  {
+    "tool": "re_android_root_bypass",
+    "status": "error",
+    "args": {
+      "package_name": "/workspace/audit/binaries/true_elf",
+      "bypass_type": "root"
+    },
+    "message": "Failed to get Frida device: device not found"
+  },
+  {
+    "tool": "re_android_semgrep",
+    "status": "error",
+    "args": {
+      "target_dir": "/workspace/audit/binaries/true_elf"
+    },
+    "message": "Directory not found: /workspace/audit/binaries/true_elf"
+  },
+  {
+    "tool": "re_android_smali_assemble",
+    "status": "error",
+    "args": {
+      "smali_dir": "/workspace/audit/binaries/smali"
+    },
+    "message": "smali assemble failed (rc=1): "
+  },
+  {
+    "tool": "re_android_smali_disasm",
+    "status": "error",
+    "args": {
+      "input_path": "/workspace/audit/binaries/true_elf"
+    },
+    "message": "baksmali failed (rc=1): "
+  },
+  {
+    "tool": "re_android_smali_patch",
+    "status": "ok",
+    "args": {
+      "smali_file": "/workspace/audit/binaries/true_elf",
+      "patches": []
+    },
+    "message": ""
+  },
+  {
+    "tool": "re_android_trace",
+    "status": "error",
+    "args": {
+      "package_name": "/workspace/audit/binaries/true_elf",
+      "trace_type": "java"
+    },
+    "message": "Failed to get Frida device: device not found"
+  },
+  {
+    "tool": "re_android_traffic_intercept",
+    "status": "error",
+    "args": {
+      "package_name": "/workspace/audit/binaries/true_elf",
+      "action": "hook_http"
+    },
+    "message": "Failed to get Frida device: device not found"
+  },
+  {
+    "tool": "re_angr_cfg",
+    "status": "ok",
+    "args": {
+      "binary_path": "/workspace/audit/binaries/true_elf",
+      "cfg_type": "fast"
+    },
+    "message": ""
+  },
+  {
+    "tool": "re_angr_explore",
+    "status": "error",
+    "args": {
+      "binary_path": "/workspace/audit/binaries/true_elf",
+      "find": null,
+      "stdin_length": 64,
+      "timeout": 10,
+      "strategy": "explorer"
+    },
+    "message": "Invalid arguments for tool 're_angr_explore' at $.find: None is not of type 'string', 'array'"
+  },
+  {
+    "tool": "re_angr_vuln_scan",
+    "status": "ok",
+    "args": {
+      "binary_path": "/workspace/audit/binaries/true_elf",
+      "vuln_types": [
+        "all"
+      ],
+      "timeout": 10
+    },
+    "message": ""
+  },
+  {
+    "tool": "re_antianalysis_bypass",
+    "status": "ok",
+    "args": {
+      "bypass_type": "ptrace"
+    },
+    "message": ""
+  },
+  {
+    "tool": "re_antianalysis_detect",
+    "status": "ok",
+    "args": {
+      "binary_path": "/workspace/audit/binaries/true_elf"
+    },
+    "message": ""
+  },
+  {
+    "tool": "re_apk_analyze",
+    "status": "ok",
+    "args": {
+      "apk_path": "/workspace/audit/binaries/sample.apk",
+      "extract_dex": false
+    },
+    "message": ""
+  },
+  {
+    "tool": "re_aslr_defeat",
+    "status": "error",
+    "args": {
+      "action": "calc_base",
+      "arch": "x64"
+    },
+    "message": "leaked_addr and known_offset required"
+  },
+  {
+    "tool": "re_backtrace",
+    "status": "error",
+    "args": {
+      "session_id": "/workspace/audit/binaries/true_elf",
+      "max_frames": 50
+    },
+    "message": "Tool 're_backtrace' failed: KeyError: '__session_manager__'"
+  },
+  {
+    "tool": "re_bindiff",
+    "status": "ok",
+    "args": {
+      "path_a": "/workspace/audit/binaries/true_elf",
+      "path_b": "/workspace/audit/binaries/true_elf",
+      "max_diffs": 200
+    },
+    "message": ""
+  },
+  {
+    "tool": "re_bp_delete",
+    "status": "error",
+    "args": {
+      "session_id": "/workspace/audit/binaries/true_elf",
+      "breakpoint_id": 5
+    },
+    "message": "Tool 're_bp_delete' failed: KeyError: '__session_manager__'"
+  },
+  {
+    "tool": "re_bp_list",
+    "status": "error",
+    "args": {
+      "session_id": "/workspace/audit/binaries/true_elf"
+    },
+    "message": "Tool 're_bp_list' failed: KeyError: '__session_manager__'"
+  },
+  {
+    "tool": "re_bp_set",
+    "status": "error",
+    "args": {
+      "session_id": "/workspace/audit/binaries/true_elf",
+      "location": "/workspace/audit/binaries/true_elf",
+      "hardware": false,
+      "type": "breakpoint"
+    },
+    "message": "Tool 're_bp_set' failed: KeyError: '__session_manager__'"
+  },
+  {
+    "tool": "re_capa",
+    "status": "error",
+    "args": {
+      "binary_path": "/workspace/audit/binaries/true_elf",
+      "format": "auto",
+      "timeout": 10
+    },
+    "message": "capa failed (rc=10): ERROR    capa: default embedded rules not found! (maybe you          main.py:496\n         installed capa as a library?)                                          \nERROR    capa: provide your own rule set via the `-r` option.        main.py:497\n"
+  },
+  {
+    "tool": "re_continue",
+    "status": "error",
+    "args": {
+      "session_id": "/workspace/audit/binaries/true_elf"
+    },
+    "message": "Tool 're_continue' failed: KeyError: '__session_manager__'"
+  },
+  {
+    "tool": "re_coverage_analyze",
+    "status": "ok",
+    "args": {
+      "coverage_path": "/workspace/audit/binaries/true_elf",
+      "format": "auto"
+    },
+    "message": ""
+  },
+  {
+    "tool": "re_coverage_collect",
+    "status": "error",
+    "args": {
+      "binary_path": "/workspace/audit/binaries/true_elf",
+      "backend": "drcov",
+      "timeout": 10
+    },
+    "message": "DynamoRIO failed: Required external tool 'drrun' is not installed. Install DynamoRIO and add drrun to PATH: https://dynamorio.org/"
+  },
+  {
+    "tool": "re_crypto_constants",
+    "status": "error",
+    "args": {},
+    "message": "Provide binary_path or hex_bytes"
+  },
+  {
+    "tool": "re_debugger_attach",
+    "status": "error",
+    "args": {
+      "pid": 5,
+      "backend": "gdb"
+    },
+    "message": "Tool 're_debugger_attach' failed: KeyError: '__session_manager__'"
+  },
+  {
+    "tool": "re_debugger_launch",
+    "status": "error",
+    "args": {
+      "binary_path": "/workspace/audit/binaries/true_elf",
+      "backend": "gdb",
+      "break_on_entry": true
+    },
+    "message": "Tool 're_debugger_launch' failed: KeyError: '__session_manager__'"
+  },
+  {
+    "tool": "re_decompile",
+    "status": "ok",
+    "args": {
+      "binary_path": "/workspace/audit/binaries/true_elf",
+      "function": "/workspace/audit/binaries/true_elf",
+      "backend": "auto"
+    },
+    "message": ""
+  },
+  {
+    "tool": "re_deobfuscate_strings",
+    "status": "ok",
+    "args": {
+      "binary_path": "/workspace/audit/binaries/true_elf",
+      "methods": [
+        "all"
+      ],
+      "min_length": 4
+    },
+    "message": ""
+  },
+  {
+    "tool": "re_detect_cff",
+    "status": "ok",
+    "args": {
+      "binary_path": "/workspace/audit/binaries/true_elf"
+    },
+    "message": ""
+  },
+  {
+    "tool": "re_detect_opaque_predicates",
+    "status": "ok",
+    "args": {
+      "binary_path": "/workspace/audit/binaries/true_elf",
+      "max_instructions": 100000
+    },
+    "message": ""
+  },
+  {
+    "tool": "re_detect_packer",
+    "status": "ok",
+    "args": {
+      "binary_path": "/workspace/audit/binaries/true_elf"
+    },
+    "message": ""
+  },
+  {
+    "tool": "re_disassemble",
+    "status": "error",
+    "args": {
+      "arch": "x64",
+      "offset": 0,
+      "count": 50,
+      "syntax": "intel",
+      "backend": "auto"
+    },
+    "message": "Invalid arguments for tool 're_disassemble' at $: {'arch': 'x64', 'offset': 0, 'count': 50, 'syntax': 'intel', 'backend': 'auto'} is not valid under any of the given schemas"
+  },
+  {
+    "tool": "re_dotnet_analyze",
+    "status": "error",
+    "args": {
+      "assembly_path": "/workspace/audit/binaries/true_elf",
+      "decompile": false
+    },
+    "message": "Required external tool 'monodis' is not installed. Install mono-utils: `sudo apt install mono-utils`"
+  },
+  {
+    "tool": "re_dynamic_unpack",
+    "status": "error",
+    "args": {
+      "binary_path": "/workspace/audit/binaries/true_elf",
+      "timeout": 10
+    },
+    "message": "Failed to capture unpacked image. For UPX-packed binaries, use re_unpack_upx for static unpacking instead."
+  },
+  {
+    "tool": "re_entropy",
+    "status": "error",
+    "args": {
+      "offset": 0,
+      "length": 0,
+      "window_size": 256,
+      "include_sections": true
+    },
+    "message": "Invalid arguments for tool 're_entropy' at $: {'offset': 0, 'length': 0, 'window_size': 256, 'include_sections': True} is not valid under any of the given schemas"
+  },
+  {
+    "tool": "re_evaluate",
+    "status": "error",
+    "args": {
+      "session_id": "/workspace/audit/binaries/true_elf",
+      "expression": "/workspace/audit/binaries/true_elf"
+    },
+    "message": "Tool 're_evaluate' failed: KeyError: '__session_manager__'"
+  },
+  {
+    "tool": "re_exploit_fmtstr",
+    "status": "ok",
+    "args": {
+      "action": "calc_offset"
+    },
+    "message": ""
+  },
+  {
+    "tool": "re_extract_strings",
+    "status": "ok",
+    "args": {
+      "binary_path": "/workspace/audit/binaries/true_elf",
+      "min_length": 4,
+      "encoding": "all",
+      "use_floss": false,
+      "max_strings": 500
+    },
+    "message": ""
+  },
+  {
+    "tool": "re_finish",
+    "status": "error",
+    "args": {
+      "session_id": "/workspace/audit/binaries/true_elf"
+    },
+    "message": "Tool 're_finish' failed: KeyError: '__session_manager__'"
+  },
+  {
+    "tool": "re_firmware_baseaddr",
+    "status": "ok",
+    "args": {
+      "firmware_path": "/workspace/audit/binaries/true_elf"
+    },
+    "message": ""
+  },
+  {
+    "tool": "re_firmware_extract",
+    "status": "ok",
+    "args": {
+      "firmware_path": "/workspace/audit/binaries/true_elf",
+      "action": "scan"
+    },
+    "message": ""
+  },
+  {
+    "tool": "re_firmware_vuln_scan",
+    "status": "ok",
+    "args": {
+      "firmware_path": "/workspace/audit/binaries/true_elf"
+    },
+    "message": ""
+  },
+  {
+    "tool": "re_frida_attach",
+    "status": "error",
+    "args": {
+      "target": null,
+      "device": "local"
+    },
+    "message": "Invalid arguments for tool 're_frida_attach' at $.target: None is not of type 'string', 'integer'"
+  },
+  {
+    "tool": "re_frida_dump",
+    "status": "error",
+    "args": {
+      "session_id": "/workspace/audit/binaries/true_elf",
+      "address": "/workspace/audit/binaries/true_elf",
+      "size": 5
+    },
+    "message": "Tool 're_frida_dump' failed: KeyError: '__session_manager__'"
+  },
+  {
+    "tool": "re_frida_intercept",
+    "status": "error",
+    "args": {
+      "session_id": "/workspace/audit/binaries/true_elf",
+      "target": "/workspace/audit/binaries/true_elf",
+      "log_args": 4
+    },
+    "message": "Tool 're_frida_intercept' failed: KeyError: '__session_manager__'"
+  },
+  {
+    "tool": "re_frida_memory_scan",
+    "status": "error",
+    "args": {
+      "session_id": "/workspace/audit/binaries/true_elf",
+      "pattern": "/workspace/audit/binaries/true_elf",
+      "protection": "r--"
+    },
+    "message": "Tool 're_frida_memory_scan' failed: KeyError: '__session_manager__'"
+  },
+  {
+    "tool": "re_frida_messages",
+    "status": "error",
+    "args": {
+      "session_id": "/workspace/audit/binaries/true_elf",
+      "clear": false
+    },
+    "message": "Tool 're_frida_messages' failed: KeyError: '__session_manager__'"
+  },
+  {
+    "tool": "re_frida_modules",
+    "status": "error",
+    "args": {
+      "session_id": "/workspace/audit/binaries/true_elf"
+    },
+    "message": "Tool 're_frida_modules' failed: KeyError: '__session_manager__'"
+  },
+  {
+    "tool": "re_frida_resume",
+    "status": "error",
+    "args": {
+      "session_id": "/workspace/audit/binaries/true_elf"
+    },
+    "message": "Tool 're_frida_resume' failed: KeyError: '__session_manager__'"
+  },
+  {
+    "tool": "re_frida_rpc",
+    "status": "error",
+    "args": {
+      "session_id": "/workspace/audit/binaries/true_elf",
+      "method": "/workspace/audit/binaries/true_elf",
+      "script_name": "default"
+    },
+    "message": "Tool 're_frida_rpc' failed: KeyError: '__session_manager__'"
+  },
+  {
+    "tool": "re_frida_script",
+    "status": "error",
+    "args": {
+      "session_id": "/workspace/audit/binaries/true_elf",
+      "code": "/workspace/audit/binaries/true_elf",
+      "script_name": "adhoc"
+    },
+    "message": "Tool 're_frida_script' failed: KeyError: '__session_manager__'"
+  },
+  {
+    "tool": "re_frida_spawn",
+    "status": "error",
+    "args": {
+      "binary_path": "/workspace/audit/binaries/true_elf",
+      "device": "local"
+    },
+    "message": "Tool 're_frida_spawn' failed: KeyError: '__session_manager__'"
+  },
+  {
+    "tool": "re_gdb_exploit_helpers",
+    "status": "ok",
+    "args": {
+      "action": "pattern_create"
+    },
+    "message": ""
+  },
+  {
+    "tool": "re_gdb_heap",
+    "status": "ok",
+    "args": {
+      "binary_path": "/workspace/audit/binaries/true_elf",
+      "action": "heap_info"
+    },
+    "message": ""
+  },
+  {
+    "tool": "re_gdb_rop",
+    "status": "ok",
+    "args": {
+      "binary_path": "/workspace/audit/binaries/true_elf",
+      "action": "find_gadgets"
+    },
+    "message": ""
+  },
+  {
+    "tool": "re_hash",
+    "status": "error",
+    "args": {},
+    "message": "Provide binary_path or hex_bytes"
+  },
+  {
+    "tool": "re_heap_analysis",
+    "status": "error",
+    "args": {
+      "session_id": "/workspace/audit/binaries/true_elf"
+    },
+    "message": "Tool 're_heap_analysis' failed: KeyError: '__session_manager__'"
+  },
+  {
+    "tool": "re_heap_chunk",
+    "status": "error",
+    "args": {
+      "action": "parse",
+      "arch": "x64"
+    },
+    "message": "data required for parse action"
+  },
+  {
+    "tool": "re_heap_safe_linking",
+    "status": "error",
+    "args": {
+      "action": "encode"
+    },
+    "message": "target_addr and chunk_addr required"
+  },
+  {
+    "tool": "re_heap_technique",
+    "status": "ok",
+    "args": {
+      "list_all": false
+    },
+    "message": ""
+  },
+  {
+    "tool": "re_hexdump",
+    "status": "error",
+    "args": {
+      "offset": 0,
+      "length": 256,
+      "width": 16
+    },
+    "message": "Provide binary_path or hex_bytes"
+  },
+  {
+    "tool": "re_java_analyze",
+    "status": "error",
+    "args": {
+      "class_path": "/workspace/audit/binaries/true_elf",
+      "verbose": false
+    },
+    "message": "Not a Java class file (missing CAFEBABE magic)"
+  },
+  {
+    "tool": "re_libc_identify",
+    "status": "error",
+    "args": {
+      "leaks": {},
+      "arch": "x64"
+    },
+    "message": "At least 1 leaked address required"
+  },
+  {
+    "tool": "re_libc_offsets",
+    "status": "ok",
+    "args": {
+      "libc_path": "/workspace/audit/binaries/true_elf",
+      "find_strings": true
+    },
+    "message": ""
+  },
+  {
+    "tool": "re_lldb_command",
+    "status": "error",
+    "args": {
+      "session_id": "/workspace/audit/binaries/true_elf",
+      "command": "continue"
+    },
+    "message": "Tool 're_lldb_command' failed: KeyError: '__session_manager__'"
+  },
+  {
+    "tool": "re_lldb_launch",
+    "status": "error",
+    "args": {
+      "binary_path": "/workspace/audit/binaries/true_elf",
+      "break_on_entry": true
+    },
+    "message": "lldb Python API not available. Ensure lldb is installed and the Python bindings are on PYTHONPATH."
+  },
+  {
+    "tool": "re_malware_config_extract",
+    "status": "ok",
+    "args": {
+      "binary_path": "/workspace/audit/binaries/true_elf"
+    },
+    "message": ""
+  },
+  {
+    "tool": "re_malware_sandbox",
+    "status": "error",
+    "args": {
+      "action": "vt_lookup"
+    },
+    "message": "hash required for vt_lookup"
+  },
+  {
+    "tool": "re_malware_triage",
+    "status": "ok",
+    "args": {
+      "binary_path": "/workspace/audit/binaries/true_elf"
+    },
+    "message": ""
+  },
+  {
+    "tool": "re_malware_yara_gen",
+    "status": "ok",
+    "args": {
+      "binary_path": "/workspace/audit/binaries/true_elf"
+    },
+    "message": ""
+  },
+  {
+    "tool": "re_memory_read",
+    "status": "error",
+    "args": {
+      "session_id": "/workspace/audit/binaries/true_elf",
+      "address": "/workspace/audit/binaries/true_elf",
+      "length": 256,
+      "format": "hex"
+    },
+    "message": "Tool 're_memory_read' failed: KeyError: '__session_manager__'"
+  },
+  {
+    "tool": "re_memory_write",
+    "status": "error",
+    "args": {
+      "session_id": "/workspace/audit/binaries/true_elf",
+      "address": "/workspace/audit/binaries/true_elf",
+      "hex_bytes": "41424344"
+    },
+    "message": "Tool 're_memory_write' failed: KeyError: '__session_manager__'"
+  },
+  {
+    "tool": "re_one_gadget",
+    "status": "error",
+    "args": {
+      "libc_path": "/workspace/audit/binaries/true_elf",
+      "constraints": "any"
+    },
+    "message": "Required external tool 'one_gadget' is not installed. Install one_gadget: `gem install one_gadget`"
+  },
+  {
+    "tool": "re_parse_binary",
+    "status": "ok",
+    "args": {
+      "binary_path": "/workspace/audit/binaries/true_elf",
+      "include_symbols": true,
+      "include_relocations": true
+    },
+    "message": ""
+  },
+  {
+    "tool": "re_patch",
+    "status": "ok",
+    "args": {
+      "binary_path": "/workspace/audit/binaries/true_elf",
+      "patches": [],
+      "create_backup": true
+    },
+    "message": ""
+  },
+  {
+    "tool": "re_pattern_search",
+    "status": "error",
+    "args": {
+      "pattern": "/workspace/audit/binaries/true_elf",
+      "max_results": 100,
+      "context_bytes": 16
+    },
+    "message": "Provide binary_path or hex_bytes"
+  },
+  {
+    "tool": "re_pcap_analyze",
+    "status": "ok",
+    "args": {
+      "pcap_path": "/workspace/audit/binaries/sample.pcap",
+      "max_packets": 10000,
+      "extract_streams": true,
+      "detect_beaconing": true
+    },
+    "message": ""
+  },
+  {
+    "tool": "re_pe_rebuild",
+    "status": "error",
+    "args": {
+      "dump_path": "/workspace/audit/binaries/true_elf"
+    },
+    "message": "File is not a valid PE binary"
+  },
+  {
+    "tool": "re_protocol_dissect",
+    "status": "error",
+    "args": {
+      "action": "analyze_packet"
+    },
+    "message": "hex_data required"
+  },
+  {
+    "tool": "re_protocol_fuzz",
+    "status": "error",
+    "args": {
+      "action": "mutate_packet"
+    },
+    "message": "hex_data required"
+  },
+  {
+    "tool": "re_protocol_pcap",
+    "status": "ok",
+    "args": {
+      "pcap_path": "/workspace/audit/binaries/sample.pcap",
+      "action": "summary"
+    },
+    "message": ""
+  },
+  {
+    "tool": "re_qemu_run",
+    "status": "ok",
+    "args": {
+      "binary_path": "/workspace/audit/binaries/true_elf",
+      "action": "run",
+      "timeout": 5
+    },
+    "message": ""
+  },
+  {
+    "tool": "re_qemu_system",
+    "status": "ok",
+    "args": {
+      "action": "start_vm"
+    },
+    "message": "Use run_in_terminal to start this VM. The command is provided for manual execution."
+  },
+  {
+    "tool": "re_registers",
+    "status": "error",
+    "args": {
+      "session_id": "/workspace/audit/binaries/true_elf"
+    },
+    "message": "Tool 're_registers' failed: KeyError: '__session_manager__'"
+  },
+  {
+    "tool": "re_rizin_analyze",
+    "status": "error",
+    "args": {
+      "binary_path": "/workspace/audit/binaries/true_elf",
+      "action": "info"
+    },
+    "message": "Tool 're_rizin_analyze' failed: Exception: ERROR: Cannot find radare2 in PATH"
+  },
+  {
+    "tool": "re_rizin_diff",
+    "status": "error",
+    "args": {
+      "binary_a": "/workspace/audit/binaries/true_elf",
+      "binary_b": "/workspace/audit/binaries/true_elf"
+    },
+    "message": "Required external tool 'rz_diff' is not installed. Install Rizin diff tooling (`rz-diff`) from https://rizin.re/"
+  },
+  {
+    "tool": "re_rop_chain",
+    "status": "error",
+    "args": {
+      "binary_path": "/workspace/audit/binaries/true_elf",
+      "chain_type": "execve",
+      "arch": "x64"
+    },
+    "message": "bin_sh_addr required for execve chain"
+  },
+  {
+    "tool": "re_rop_gadgets",
+    "status": "ok",
+    "args": {
+      "binary_path": "/workspace/audit/binaries/true_elf",
+      "arch": "auto",
+      "max_gadget_len": 6,
+      "min_score": 0,
+      "limit": 100
+    },
+    "message": ""
+  },
+  {
+    "tool": "re_shellcode_generate",
+    "status": "error",
+    "args": {
+      "action": "generate"
+    },
+    "message": "Required external tool 'msfvenom' is not installed. Install Metasploit Framework (provides msfvenom)"
+  },
+  {
+    "tool": "re_step",
+    "status": "error",
+    "args": {
+      "session_id": "/workspace/audit/binaries/true_elf"
+    },
+    "message": "Tool 're_step' failed: KeyError: '__session_manager__'"
+  },
+  {
+    "tool": "re_stepi",
+    "status": "error",
+    "args": {
+      "session_id": "/workspace/audit/binaries/true_elf"
+    },
+    "message": "Tool 're_stepi' failed: KeyError: '__session_manager__'"
+  },
+  {
+    "tool": "re_symbols",
+    "status": "ok",
+    "args": {
+      "binary_path": "/workspace/audit/binaries/true_elf",
+      "scan_prologues": false,
+      "arch": "x64"
+    },
+    "message": ""
+  },
+  {
+    "tool": "re_triton_dse",
+    "status": "error",
+    "args": {
+      "binary_path": "/workspace/audit/binaries/true_elf",
+      "max_instructions": 10000
+    },
+    "message": "Required Python module 'triton' is not installed. Install it with: Build Triton from source: https://github.com/JonathanSalwan/Triton (PyPI triton is unrelated)"
+  },
+  {
+    "tool": "re_unpack_upx",
+    "status": "error",
+    "args": {
+      "binary_path": "/workspace/audit/binaries/true_elf",
+      "force": false
+    },
+    "message": "Required external tool 'upx' is not installed. Install: `sudo apt install upx-ucl` or `brew install upx`"
+  },
+  {
+    "tool": "re_wasm_analyze",
+    "status": "ok",
+    "args": {
+      "wasm_path": "/workspace/audit/binaries/sample.wasm",
+      "disassemble": false
+    },
+    "message": ""
+  },
+  {
+    "tool": "re_xor_analysis",
+    "status": "error",
+    "args": {
+      "max_keylen": 32
+    },
+    "message": "Provide binary_path or hex_bytes"
+  },
+  {
+    "tool": "re_yara_scan",
+    "status": "error",
+    "args": {
+      "include_community_rules": false,
+      "context_bytes": 32,
+      "timeout": 10
+    },
+    "message": "Invalid arguments for tool 're_yara_scan' at $: {'include_community_rules': False, 'context_bytes': 32, 'timeout': 10} is not valid under any of the given schemas"
+  }
+]

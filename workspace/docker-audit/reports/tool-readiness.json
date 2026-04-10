@@ -1,0 +1,1191 @@
+[
+  {
+    "tool": "re_admin_cache",
+    "category": "admin",
+    "requires_tools": [],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_admin_status",
+    "category": "admin",
+    "requires_tools": [],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_android_activity_monitor",
+    "category": "android",
+    "requires_tools": [],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_android_apk_parse",
+    "category": "android",
+    "requires_tools": [],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_android_binary_analysis",
+    "category": "android",
+    "requires_tools": [],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_android_crypto_monitor",
+    "category": "android",
+    "requires_tools": [],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_android_decompile",
+    "category": "android",
+    "requires_tools": [
+      "jadx"
+    ],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_android_device",
+    "category": "android",
+    "requires_tools": [
+      "adb"
+    ],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_android_dex_analyze",
+    "category": "android",
+    "requires_tools": [],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_android_frida_attach",
+    "category": "android",
+    "requires_tools": [],
+    "requires_modules": [
+      "frida"
+    ],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_android_frida_spawn",
+    "category": "android",
+    "requires_tools": [],
+    "requires_modules": [
+      "frida"
+    ],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_android_gadget_inject",
+    "category": "android",
+    "requires_tools": [
+      "apktool"
+    ],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_android_hook",
+    "category": "android",
+    "requires_tools": [],
+    "requires_modules": [
+      "frida"
+    ],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_android_manifest_vulns",
+    "category": "android",
+    "requires_tools": [],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_android_memory",
+    "category": "android",
+    "requires_tools": [],
+    "requires_modules": [
+      "frida"
+    ],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_android_mobsf_scan",
+    "category": "android",
+    "requires_tools": [],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_android_quark",
+    "category": "android",
+    "requires_tools": [
+      "quark"
+    ],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_android_repack",
+    "category": "android",
+    "requires_tools": [
+      "apktool"
+    ],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_android_resources",
+    "category": "android",
+    "requires_tools": [],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_android_root_bypass",
+    "category": "android",
+    "requires_tools": [],
+    "requires_modules": [
+      "frida"
+    ],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_android_semgrep",
+    "category": "android",
+    "requires_tools": [
+      "semgrep"
+    ],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_android_smali_assemble",
+    "category": "android",
+    "requires_tools": [
+      "smali"
+    ],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_android_smali_disasm",
+    "category": "android",
+    "requires_tools": [
+      "baksmali"
+    ],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_android_smali_patch",
+    "category": "android",
+    "requires_tools": [],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_android_trace",
+    "category": "android",
+    "requires_tools": [],
+    "requires_modules": [
+      "frida"
+    ],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_android_traffic_intercept",
+    "category": "android",
+    "requires_tools": [
+      "adb"
+    ],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_angr_cfg",
+    "category": "symbolic",
+    "requires_tools": [],
+    "requires_modules": [
+      "angr"
+    ],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_angr_explore",
+    "category": "symbolic",
+    "requires_tools": [],
+    "requires_modules": [
+      "angr"
+    ],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_angr_vuln_scan",
+    "category": "symbolic",
+    "requires_tools": [],
+    "requires_modules": [
+      "angr"
+    ],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_antianalysis_bypass",
+    "category": "antianalysis",
+    "requires_tools": [],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_antianalysis_detect",
+    "category": "antianalysis",
+    "requires_tools": [
+      "strings",
+      "objdump"
+    ],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_apk_analyze",
+    "category": "binary_formats",
+    "requires_tools": [
+      "aapt"
+    ],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_aslr_defeat",
+    "category": "exploit",
+    "requires_tools": [
+      "objdump"
+    ],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_backtrace",
+    "category": "dynamic",
+    "requires_tools": [],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_bindiff",
+    "category": "utility",
+    "requires_tools": [],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_bp_delete",
+    "category": "dynamic",
+    "requires_tools": [],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_bp_list",
+    "category": "dynamic",
+    "requires_tools": [],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_bp_set",
+    "category": "dynamic",
+    "requires_tools": [],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_capa",
+    "category": "static",
+    "requires_tools": [
+      "capa"
+    ],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_continue",
+    "category": "dynamic",
+    "requires_tools": [],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_coverage_analyze",
+    "category": "dynamic",
+    "requires_tools": [],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_coverage_collect",
+    "category": "dynamic",
+    "requires_tools": [],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_crypto_constants",
+    "category": "utility",
+    "requires_tools": [],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_debugger_attach",
+    "category": "dynamic",
+    "requires_tools": [
+      "gdb"
+    ],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_debugger_launch",
+    "category": "dynamic",
+    "requires_tools": [
+      "gdb"
+    ],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_decompile",
+    "category": "static",
+    "requires_tools": [],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_deobfuscate_strings",
+    "category": "deobfuscation",
+    "requires_tools": [],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_detect_cff",
+    "category": "deobfuscation",
+    "requires_tools": [],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_detect_opaque_predicates",
+    "category": "deobfuscation",
+    "requires_tools": [],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_detect_packer",
+    "category": "unpacking",
+    "requires_tools": [],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_disassemble",
+    "category": "static",
+    "requires_tools": [],
+    "requires_modules": [
+      "capstone"
+    ],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_dotnet_analyze",
+    "category": "binary_formats",
+    "requires_tools": [
+      "monodis"
+    ],
+    "requires_modules": [],
+    "ready": false,
+    "missing_tools": [
+      "monodis"
+    ],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_dynamic_unpack",
+    "category": "unpacking",
+    "requires_tools": [],
+    "requires_modules": [
+      "frida"
+    ],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_entropy",
+    "category": "static",
+    "requires_tools": [],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_evaluate",
+    "category": "dynamic",
+    "requires_tools": [],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_exploit_fmtstr",
+    "category": "exploit",
+    "requires_tools": [],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_extract_strings",
+    "category": "static",
+    "requires_tools": [],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_finish",
+    "category": "dynamic",
+    "requires_tools": [],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_firmware_baseaddr",
+    "category": "firmware",
+    "requires_tools": [
+      "strings"
+    ],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_firmware_extract",
+    "category": "firmware",
+    "requires_tools": [
+      "binwalk"
+    ],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_firmware_vuln_scan",
+    "category": "firmware",
+    "requires_tools": [
+      "strings"
+    ],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_frida_attach",
+    "category": "dynamic",
+    "requires_tools": [],
+    "requires_modules": [
+      "frida"
+    ],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_frida_dump",
+    "category": "dynamic",
+    "requires_tools": [],
+    "requires_modules": [
+      "frida"
+    ],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_frida_intercept",
+    "category": "dynamic",
+    "requires_tools": [],
+    "requires_modules": [
+      "frida"
+    ],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_frida_memory_scan",
+    "category": "dynamic",
+    "requires_tools": [],
+    "requires_modules": [
+      "frida"
+    ],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_frida_messages",
+    "category": "dynamic",
+    "requires_tools": [],
+    "requires_modules": [
+      "frida"
+    ],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_frida_modules",
+    "category": "dynamic",
+    "requires_tools": [],
+    "requires_modules": [
+      "frida"
+    ],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_frida_resume",
+    "category": "dynamic",
+    "requires_tools": [],
+    "requires_modules": [
+      "frida"
+    ],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_frida_rpc",
+    "category": "dynamic",
+    "requires_tools": [],
+    "requires_modules": [
+      "frida"
+    ],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_frida_script",
+    "category": "dynamic",
+    "requires_tools": [],
+    "requires_modules": [
+      "frida"
+    ],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_frida_spawn",
+    "category": "dynamic",
+    "requires_tools": [],
+    "requires_modules": [
+      "frida"
+    ],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_gdb_exploit_helpers",
+    "category": "platform",
+    "requires_tools": [
+      "gdb"
+    ],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_gdb_heap",
+    "category": "platform",
+    "requires_tools": [
+      "gdb"
+    ],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_gdb_rop",
+    "category": "platform",
+    "requires_tools": [
+      "ropgadget"
+    ],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_hash",
+    "category": "utility",
+    "requires_tools": [],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_heap_analysis",
+    "category": "dynamic",
+    "requires_tools": [],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_heap_chunk",
+    "category": "exploit",
+    "requires_tools": [],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_heap_safe_linking",
+    "category": "exploit",
+    "requires_tools": [],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_heap_technique",
+    "category": "exploit",
+    "requires_tools": [],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_hexdump",
+    "category": "utility",
+    "requires_tools": [],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_java_analyze",
+    "category": "binary_formats",
+    "requires_tools": [
+      "java"
+    ],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_libc_identify",
+    "category": "exploit",
+    "requires_tools": [],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_libc_offsets",
+    "category": "exploit",
+    "requires_tools": [
+      "readelf",
+      "nm"
+    ],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_lldb_command",
+    "category": "dynamic",
+    "requires_tools": [],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_lldb_launch",
+    "category": "dynamic",
+    "requires_tools": [
+      "lldb"
+    ],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_malware_config_extract",
+    "category": "malware",
+    "requires_tools": [],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_malware_sandbox",
+    "category": "malware",
+    "requires_tools": [
+      "curl"
+    ],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_malware_triage",
+    "category": "malware",
+    "requires_tools": [
+      "file",
+      "objdump",
+      "strings"
+    ],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_malware_yara_gen",
+    "category": "malware",
+    "requires_tools": [
+      "strings"
+    ],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_memory_read",
+    "category": "dynamic",
+    "requires_tools": [],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_memory_write",
+    "category": "dynamic",
+    "requires_tools": [],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_one_gadget",
+    "category": "exploit",
+    "requires_tools": [
+      "one_gadget"
+    ],
+    "requires_modules": [],
+    "ready": false,
+    "missing_tools": [
+      "one_gadget"
+    ],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_parse_binary",
+    "category": "static",
+    "requires_tools": [],
+    "requires_modules": [
+      "lief"
+    ],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_patch",
+    "category": "utility",
+    "requires_tools": [],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_pattern_search",
+    "category": "utility",
+    "requires_tools": [],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_pcap_analyze",
+    "category": "utility",
+    "requires_tools": [],
+    "requires_modules": [
+      "scapy"
+    ],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_pe_rebuild",
+    "category": "unpacking",
+    "requires_tools": [],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_protocol_dissect",
+    "category": "protocol",
+    "requires_tools": [],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_protocol_fuzz",
+    "category": "protocol",
+    "requires_tools": [],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_protocol_pcap",
+    "category": "protocol",
+    "requires_tools": [
+      "tshark",
+      "capinfos"
+    ],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_qemu_run",
+    "category": "platform",
+    "requires_tools": [
+      "qemu_user"
+    ],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_qemu_system",
+    "category": "platform",
+    "requires_tools": [
+      "qemu_img"
+    ],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_registers",
+    "category": "dynamic",
+    "requires_tools": [],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_rizin_analyze",
+    "category": "platform",
+    "requires_tools": [],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_rizin_diff",
+    "category": "platform",
+    "requires_tools": [
+      "rz_diff"
+    ],
+    "requires_modules": [],
+    "ready": false,
+    "missing_tools": [
+      "rz_diff"
+    ],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_rop_chain",
+    "category": "exploit",
+    "requires_tools": [],
+    "requires_modules": [
+      "capstone"
+    ],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_rop_gadgets",
+    "category": "exploit",
+    "requires_tools": [],
+    "requires_modules": [
+      "capstone"
+    ],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_shellcode_generate",
+    "category": "exploit",
+    "requires_tools": [
+      "msfvenom"
+    ],
+    "requires_modules": [],
+    "ready": false,
+    "missing_tools": [
+      "msfvenom"
+    ],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_step",
+    "category": "dynamic",
+    "requires_tools": [],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_stepi",
+    "category": "dynamic",
+    "requires_tools": [],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_symbols",
+    "category": "static",
+    "requires_tools": [],
+    "requires_modules": [
+      "lief"
+    ],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_triton_dse",
+    "category": "symbolic",
+    "requires_tools": [],
+    "requires_modules": [
+      "triton"
+    ],
+    "ready": false,
+    "missing_tools": [],
+    "missing_modules": [
+      "triton"
+    ]
+  },
+  {
+    "tool": "re_unpack_upx",
+    "category": "unpacking",
+    "requires_tools": [
+      "upx"
+    ],
+    "requires_modules": [],
+    "ready": false,
+    "missing_tools": [
+      "upx"
+    ],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_wasm_analyze",
+    "category": "binary_formats",
+    "requires_tools": [
+      "wasm2wat"
+    ],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_xor_analysis",
+    "category": "utility",
+    "requires_tools": [],
+    "requires_modules": [],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  },
+  {
+    "tool": "re_yara_scan",
+    "category": "static",
+    "requires_tools": [],
+    "requires_modules": [
+      "yara"
+    ],
+    "ready": true,
+    "missing_tools": [],
+    "missing_modules": []
+  }
+]

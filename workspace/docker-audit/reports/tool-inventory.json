@@ -1,0 +1,78 @@
+{
+  "available_tools": [
+    "aapt",
+    "adb",
+    "apktool",
+    "baksmali",
+    "binwalk",
+    "capa",
+    "capinfos",
+    "curl",
+    "file",
+    "floss",
+    "gdb",
+    "ghidra_headless",
+    "jadx",
+    "java",
+    "lldb",
+    "nm",
+    "objdump",
+    "qemu_img",
+    "qemu_system",
+    "qemu_user",
+    "quark",
+    "readelf",
+    "ropgadget",
+    "semgrep",
+    "smali",
+    "strings",
+    "tshark",
+    "wasm2wat"
+  ],
+  "missing_tools": [
+    "apksigner",
+    "cfr",
+    "checksec",
+    "diec",
+    "drrun",
+    "ikdasm",
+    "monodis",
+    "msfvenom",
+    "one_gadget",
+    "pdbutil",
+    "radare2",
+    "retdec_decompiler",
+    "rizin",
+    "rz_diff",
+    "upx"
+  ],
+  "available_python_modules": [
+    "angr",
+    "capstone",
+    "elftools",
+    "frida",
+    "lief",
+    "pefile",
+    "quark",
+    "r2pipe",
+    "scapy",
+    "semgrep",
+    "ssdeep",
+    "tlsh",
+    "uncompyle6",
+    "yara"
+  ],
+  "missing_python_modules": [
+    "triton"
+  ],
+  "security": {
+    "allowed_dirs": [
+      "/workspace/audit",
+      "/home/revula",
+      "/tmp"
+    ],
+    "max_memory_mb": 2048,
+    "default_timeout": 300,
+    "max_timeout": 600
+  }
+}

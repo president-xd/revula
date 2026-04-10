@@ -1,0 +1,106 @@
+#0 building with "default" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 7.95kB done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/python:3.12-slim-bookworm
+#2 DONE 0.0s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 929B done
+#3 DONE 0.0s
+
+#4 [builder  1/10] FROM docker.io/library/python:3.12-slim-bookworm
+#4 DONE 0.0s
+
+#5 [internal] load build context
+#5 transferring context: 10.72kB 0.0s done
+#5 DONE 0.0s
+
+#6 [builder  3/10] RUN mkdir -p /opt/ghidra &&     cd /tmp &&     wget -q -O ghidra.zip "https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghidra_11.0.1_build/ghidra_11.0.1_PUBLIC_20240130.zip" &&     echo "a0bc9450aa3a231096b13a823c66311b9f84cb9cec4624393221cfed40ef6924  ghidra.zip" | sha256sum -c - &&     unzip -q ghidra.zip &&     mv ghidra_11.0.1_PUBLIC/* /opt/ghidra/ &&     rm -rf /tmp/ghidra_* /tmp/ghidra.zip &&     chmod +x /opt/ghidra/support/analyzeHeadless
+#6 CACHED
+
+#7 [builder  6/10] RUN mkdir -p /opt/smali &&     cd /opt/smali &&     wget -q -O smali.jar "https://repo.maven.apache.org/maven2/org/smali/smali/2.5.2/smali-2.5.2.jar" &&     wget -q -O baksmali.jar "https://repo.maven.apache.org/maven2/org/smali/baksmali/2.5.2/baksmali-2.5.2.jar" &&     printf '#!/usr/bin/env bash\nexec java -jar /opt/smali/smali.jar \"$@\"\n' > /usr/local/bin/smali &&     printf '#!/usr/bin/env bash\nexec java -jar /opt/smali/baksmali.jar \"$@\"\n' > /usr/local/bin/baksmali &&     chmod +x /usr/local/bin/smali /usr/local/bin/baksmali
+#7 CACHED
+
+#8 [builder  2/10] RUN apt-get update && apt-get install -y --no-install-recommends     gcc     g++     make     cmake     git     wget     curl     ca-certificates     pkg-config     openjdk-17-jdk-headless     openjdk-17-jre-headless     libssl-dev     libffi-dev     libmagic-dev     libcapstone-dev     zlib1g-dev     libbz2-dev     libreadline-dev     libsqlite3-dev     libncursesw5-dev     xz-utils     tk-dev     libxml2-dev     libxmlsec1-dev     liblzma-dev     gdb     gdb-multiarch     lldb     strace     ltrace     binutils     binutils-multiarch     binwalk     qemu-user     qemu-system     qemu-utils     wabt     adb     aapt     zipalign     tcpdump     tshark     nmap     unzip     zip     file     vim-tiny     && rm -rf /var/lib/apt/lists/*
+#8 CACHED
+
+#9 [stage-1 15/19] COPY LICENSE /app/
+#9 CACHED
+
+#10 [stage-1 13/19] COPY pyproject.toml /app/
+#10 CACHED
+
+#11 [stage-1  4/19] COPY --from=builder /opt/ghidra /opt/ghidra
+#11 CACHED
+
+#12 [stage-1 18/19] RUN useradd -m -u 1000 -s /bin/bash revula &&     mkdir -p /home/revula/.revula/cache /home/revula/.revula/ghidra_projects /home/revula/.revula/yara_rules &&     chown -R revula:revula /home/revula/.revula
+#12 CACHED
+
+#13 [stage-1 12/19] COPY src/ /app/src/
+#13 CACHED
+
+#14 [builder 10/10] RUN pip install --no-cache-dir     angr>=9.2.0     frida>=16.0.0     frida-tools>=12.0.0     androguard>=3.4.0a1     r2pipe>=1.8.0     python-tlsh>=4.5.0     ppdeep>=1.1     scapy>=2.5.0     uncompyle6>=3.9.0     flare-floss>=3.0.0     flare-capa>=7.0.0     semgrep     quark-engine     ROPGadget     ropper
+#14 CACHED
+
+#15 [stage-1 17/19] RUN mkdir -p /root/.revula/cache /root/.revula/ghidra_projects /root/.revula/yara_rules
+#15 CACHED
+
+#16 [stage-1 10/19] COPY --from=builder /usr/local/bin/apktool.jar /usr/local/bin/apktool.jar
+#16 CACHED
+
+#17 [stage-1  7/19] COPY --from=builder /usr/local/bin/smali /usr/local/bin/smali
+#17 CACHED
+
+#18 [stage-1 11/19] WORKDIR /app
+#18 CACHED
+
+#19 [builder  5/10] RUN cd /tmp &&     wget -q https://github.com/skylot/jadx/releases/download/v1.5.0/jadx-1.5.0.zip &&     unzip -q jadx-1.5.0.zip -d /opt/jadx &&     chmod +x /opt/jadx/bin/jadx &&     ln -s /opt/jadx/bin/jadx /usr/local/bin/jadx &&     rm jadx-1.5.0.zip
+#19 CACHED
+
+#20 [stage-1  8/19] COPY --from=builder /usr/local/bin/baksmali /usr/local/bin/baksmali
+#20 CACHED
+
+#21 [stage-1  5/19] COPY --from=builder /opt/jadx /opt/jadx
+#21 CACHED
+
+#22 [stage-1  2/19] RUN apt-get update && apt-get install -y --no-install-recommends     libmagic1     libcapstone4     libssl3     file     openjdk-17-jre-headless     gdb     gdb-multiarch     lldb     strace     ltrace     binutils     binutils-multiarch     binwalk     qemu-user     qemu-system     qemu-utils     wabt     adb     aapt     zipalign     tcpdump     tshark     nmap     curl     wget     ca-certificates     unzip     zip     vim-tiny     && rm -rf /var/lib/apt/lists/*
+#22 CACHED
+
+#23 [stage-1 16/19] RUN pip install --no-cache-dir -e .
+#23 CACHED
+
+#24 [builder  4/10] RUN cd /usr/local/bin &&     wget -q "https://raw.githubusercontent.com/iBotPeaches/Apktool/v2.10.0/scripts/linux/apktool" &&     wget -q "https://github.com/iBotPeaches/Apktool/releases/download/v2.10.0/apktool_2.10.0.jar" -O apktool.jar &&     chmod +x apktool apktool.jar
+#24 CACHED
+
+#25 [stage-1  9/19] COPY --from=builder /usr/local/bin/apktool /usr/local/bin/apktool
+#25 CACHED
+
+#26 [builder  8/10] COPY requirements.txt /tmp/requirements.txt
+#26 CACHED
+
+#27 [builder  9/10] RUN pip install --no-cache-dir --upgrade pip setuptools wheel &&     pip install --no-cache-dir -r /tmp/requirements.txt
+#27 CACHED
+
+#28 [stage-1  3/19] COPY --from=builder /opt/venv /opt/venv
+#28 CACHED
+
+#29 [stage-1  6/19] COPY --from=builder /opt/smali /opt/smali
+#29 CACHED
+
+#30 [builder  7/10] RUN python -m venv /opt/venv
+#30 CACHED
+
+#31 [stage-1 14/19] COPY README.md /app/
+#31 CACHED
+
+#32 [stage-1 19/19] WORKDIR /workspace
+#32 CACHED
+
+#33 exporting to image
+#33 exporting layers done
+#33 writing image sha256:8ffd8b7a0e231b57b8689e3c655fca9ea3376e1710b45c31051ba5bbfac0fa93 0.0s done
+#33 naming to docker.io/library/revula:audit-20260410 done
+#33 DONE 0.0s

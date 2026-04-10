@@ -1,0 +1,114 @@
+Docker Audit Summary
+===================
+Available external tools: 28
+Missing external tools: 15
+Available python modules: 14
+Missing python modules: 1
+
+MCP tools ready by dependency: 110 / 116
+MCP smoke results (ok): 42 / 116
+MCP smoke results (non-ok): 74
+
+Missing external tools:
+- apksigner
+- cfr
+- checksec
+- diec
+- drrun
+- ikdasm
+- monodis
+- msfvenom
+- one_gadget
+- pdbutil
+- radare2
+- retdec_decompiler
+- rizin
+- rz_diff
+- upx
+
+Dependency-not-ready MCP tools:
+- re_dotnet_analyze (missing_tools=['monodis'], missing_modules=[])
+- re_one_gadget (missing_tools=['one_gadget'], missing_modules=[])
+- re_rizin_diff (missing_tools=['rz_diff'], missing_modules=[])
+- re_shellcode_generate (missing_tools=['msfvenom'], missing_modules=[])
+- re_triton_dse (missing_tools=[], missing_modules=['triton'])
+- re_unpack_upx (missing_tools=['upx'], missing_modules=[])
+
+Smoke non-ok MCP tools:
+- re_android_activity_monitor [error] Failed to get Frida device: device not found
+- re_android_crypto_monitor [error] Failed to get Frida device: device not found
+- re_android_decompile [error] No decompiler available. Tried: jadx, cfr, fernflower. Install jadx: https://github.com/skylot/jadx
+- re_android_frida_attach [error] Provide package_name or pid
+- re_android_frida_spawn [error] Failed to get Frida device: device not found
+- re_android_gadget_inject [error] Decode failed: 
+- re_android_hook [error] Failed to get Frida device: device not found
+- re_android_manifest_vulns [error] androguard is required for manifest vulnerability scanning. Install: pip install androguard
+- re_android_memory [error] Device not found: device not found
+- re_android_mobsf_scan [error] MobSF upload failed: <urlopen error [Errno 111] Connection refused>
+- re_android_quark [error] Tool 're_android_quark' failed: PermissionError: [Errno 13] Permission denied: '/workspace/2026-04-10.quark.log'
+- re_android_repack [error] apk_path required for decode
+- re_android_root_bypass [error] Failed to get Frida device: device not found
+- re_android_semgrep [error] Directory not found: /workspace/audit/binaries/true_elf
+- re_android_smali_assemble [error] smali assemble failed (rc=1): 
+- re_android_smali_disasm [error] baksmali failed (rc=1): 
+- re_android_trace [error] Failed to get Frida device: device not found
+- re_android_traffic_intercept [error] Failed to get Frida device: device not found
+- re_angr_explore [error] Invalid arguments for tool 're_angr_explore' at $.find: None is not of type 'string', 'array'
+- re_aslr_defeat [error] leaked_addr and known_offset required
+- re_backtrace [error] Tool 're_backtrace' failed: KeyError: '__session_manager__'
+- re_bp_delete [error] Tool 're_bp_delete' failed: KeyError: '__session_manager__'
+- re_bp_list [error] Tool 're_bp_list' failed: KeyError: '__session_manager__'
+- re_bp_set [error] Tool 're_bp_set' failed: KeyError: '__session_manager__'
+- re_capa [error] capa failed (rc=10): ERROR    capa: default embedded rules not found! (maybe you          main.py:496
+         installed capa as a library?)                                          
+ERROR    capa: provide your own rule set via the `-r` option.        main.py:497
+
+- re_continue [error] Tool 're_continue' failed: KeyError: '__session_manager__'
+- re_coverage_collect [error] DynamoRIO failed: Required external tool 'drrun' is not installed. Install DynamoRIO and add drrun to PATH: https://dynamorio.org/
+- re_crypto_constants [error] Provide binary_path or hex_bytes
+- re_debugger_attach [error] Tool 're_debugger_attach' failed: KeyError: '__session_manager__'
+- re_debugger_launch [error] Tool 're_debugger_launch' failed: KeyError: '__session_manager__'
+- re_disassemble [error] Invalid arguments for tool 're_disassemble' at $: {'arch': 'x64', 'offset': 0, 'count': 50, 'syntax': 'intel', 'backend': 'auto'} is not valid under any of the given schemas
+- re_dotnet_analyze [error] Required external tool 'monodis' is not installed. Install mono-utils: `sudo apt install mono-utils`
+- re_dynamic_unpack [error] Failed to capture unpacked image. For UPX-packed binaries, use re_unpack_upx for static unpacking instead.
+- re_entropy [error] Invalid arguments for tool 're_entropy' at $: {'offset': 0, 'length': 0, 'window_size': 256, 'include_sections': True} is not valid under any of the given schemas
+- re_evaluate [error] Tool 're_evaluate' failed: KeyError: '__session_manager__'
+- re_finish [error] Tool 're_finish' failed: KeyError: '__session_manager__'
+- re_frida_attach [error] Invalid arguments for tool 're_frida_attach' at $.target: None is not of type 'string', 'integer'
+- re_frida_dump [error] Tool 're_frida_dump' failed: KeyError: '__session_manager__'
+- re_frida_intercept [error] Tool 're_frida_intercept' failed: KeyError: '__session_manager__'
+- re_frida_memory_scan [error] Tool 're_frida_memory_scan' failed: KeyError: '__session_manager__'
+- re_frida_messages [error] Tool 're_frida_messages' failed: KeyError: '__session_manager__'
+- re_frida_modules [error] Tool 're_frida_modules' failed: KeyError: '__session_manager__'
+- re_frida_resume [error] Tool 're_frida_resume' failed: KeyError: '__session_manager__'
+- re_frida_rpc [error] Tool 're_frida_rpc' failed: KeyError: '__session_manager__'
+- re_frida_script [error] Tool 're_frida_script' failed: KeyError: '__session_manager__'
+- re_frida_spawn [error] Tool 're_frida_spawn' failed: KeyError: '__session_manager__'
+- re_hash [error] Provide binary_path or hex_bytes
+- re_heap_analysis [error] Tool 're_heap_analysis' failed: KeyError: '__session_manager__'
+- re_heap_chunk [error] data required for parse action
+- re_heap_safe_linking [error] target_addr and chunk_addr required
+- re_hexdump [error] Provide binary_path or hex_bytes
+- re_java_analyze [error] Not a Java class file (missing CAFEBABE magic)
+- re_libc_identify [error] At least 1 leaked address required
+- re_lldb_command [error] Tool 're_lldb_command' failed: KeyError: '__session_manager__'
+- re_lldb_launch [error] lldb Python API not available. Ensure lldb is installed and the Python bindings are on PYTHONPATH.
+- re_malware_sandbox [error] hash required for vt_lookup
+- re_memory_read [error] Tool 're_memory_read' failed: KeyError: '__session_manager__'
+- re_memory_write [error] Tool 're_memory_write' failed: KeyError: '__session_manager__'
+- re_one_gadget [error] Required external tool 'one_gadget' is not installed. Install one_gadget: `gem install one_gadget`
+- re_pattern_search [error] Provide binary_path or hex_bytes
+- re_pe_rebuild [error] File is not a valid PE binary
+- re_protocol_dissect [error] hex_data required
+- re_protocol_fuzz [error] hex_data required
+- re_registers [error] Tool 're_registers' failed: KeyError: '__session_manager__'
+- re_rizin_analyze [error] Tool 're_rizin_analyze' failed: Exception: ERROR: Cannot find radare2 in PATH
+- re_rizin_diff [error] Required external tool 'rz_diff' is not installed. Install Rizin diff tooling (`rz-diff`) from https://rizin.re/
+- re_rop_chain [error] bin_sh_addr required for execve chain
+- re_shellcode_generate [error] Required external tool 'msfvenom' is not installed. Install Metasploit Framework (provides msfvenom)
+- re_step [error] Tool 're_step' failed: KeyError: '__session_manager__'
+- re_stepi [error] Tool 're_stepi' failed: KeyError: '__session_manager__'
+- re_triton_dse [error] Required Python module 'triton' is not installed. Install it with: Build Triton from source: https://github.com/JonathanSalwan/Triton (PyPI triton is unrelated)
+- re_unpack_upx [error] Required external tool 'upx' is not installed. Install: `sudo apt install upx-ucl` or `brew install upx`
+- re_xor_analysis [error] Provide binary_path or hex_bytes
+- re_yara_scan [error] Invalid arguments for tool 're_yara_scan' at $: {'include_community_rules': False, 'context_bytes': 32, 'timeout': 10} is not valid under any of the given schemas

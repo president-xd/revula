@@ -1,0 +1,100 @@
+
+╔══════════════════════════════════════════════════════╗
+║    Revula — Installation Validation                  ║
+╚══════════════════════════════════════════════════════╝
+
+  Python: 3.12.13 (main, Apr  7 2026, 02:25:51) [GCC 12.2.0]
+  Platform: linux
+
+─── Python Module Imports ───
+  ✓ capstone                               capstone v5.0.6
+  ✓ lief                                   lief v0.17.6
+  ✓ pefile                                 pefile v2024.8.26
+  ✓ pyelftools                             elftools v0.32
+  ✓ yara                                   yara v4.5.4
+  ✓ mcp                                    mcp v1.23.3
+  ✓ jsonschema                             jsonschema v4.25.1
+  ✓ frida                                  frida v17.9.1
+ERROR    | 2026-04-10 15:35:38,225 | angr.state_plugins.unicorn_engine | failed loading "unicornlib.so", unicorn support disabled ('NoneType' object has no attribute 'unicorn_py3')
+  ✓ angr                                   angr v9.2.209
+  ✓ r2pipe                                 r2pipe v1.8.0
+  ✓ scapy                                  scapy.all v2.7.0
+  ✓ androguard                             androguard v3.4.0a1
+  ✓ tlsh                                   tlsh v4.5.0
+  ✓ ssdeep                                 ppdeep v20260221
+  ✓ uncompyle6                             uncompyle6 v3.9.3
+  – triton                                 not installed (optional)
+  ✓ quark                                  quark v26.3.1
+  ✓ semgrep                                semgrep v1.158.0
+
+─── External Tools ───
+  ✓ gdb                                    /usr/bin/gdb
+  – radare2                                not found (optional)
+  ✓ objdump                                /usr/bin/objdump
+  ✓ strings                                /usr/bin/strings
+  – checksec                               not found (optional)
+  ✓ adb                                    /usr/bin/adb
+  ✓ jadx                                   /opt/jadx/bin/jadx
+  ✓ apktool                                /usr/local/bin/apktool
+  ✓ ghidra headless                        /opt/ghidra/support/analyzeHeadless
+  ✓ binwalk                                /usr/bin/binwalk
+  – upx                                    not found (optional)
+  ✓ capa                                   /opt/venv/bin/capa
+  – rizin                                  not found (optional)
+  ✓ lldb                                   /usr/bin/lldb
+  ✓ qemu user                              /usr/bin/qemu-x86_64
+  ✓ qemu system                            /usr/bin/qemu-system-x86_64
+  ✓ qemu-img                               /usr/bin/qemu-img
+  ✓ tshark/capinfos                        /usr/bin/tshark
+  – drrun                                  not found (optional)
+  – monodis                                not found (optional)
+  – msfvenom                               not found (optional)
+  – one_gadget                             not found (optional)
+  ✓ semgrep                                /opt/venv/bin/semgrep
+  ✓ quark                                  /opt/venv/bin/quark
+  ✓ wasm2wat                               /usr/bin/wasm2wat
+  – pdbutil                                not found (optional)
+
+─── Configuration ───
+  ✓ Config loads successfully
+    Platform: linux/x86_64
+    Tools detected: 28/43
+    Python modules: 14/15
+    Allowed dirs: ['/home/revula', '/tmp']
+  – config.toml                            not found (using defaults)
+
+─── Tool Registry ───
+  ✓ 116 tools registered
+    admin: 2 tools
+    android: 24 tools
+    antianalysis: 2 tools
+    binary_formats: 4 tools
+    deobfuscation: 3 tools
+    dynamic: 29 tools
+    exploit: 11 tools
+    firmware: 3 tools
+    malware: 4 tools
+    platform: 7 tools
+    protocol: 3 tools
+    static: 8 tools
+    symbolic: 4 tools
+    unpacking: 4 tools
+    utility: 8 tools
+
+─── Security: Path Traversal Rejection ───
+  ✓ Blocked: absolute system file                    /etc/passwd
+  ✓ Blocked: relative traversal                      ../../etc/shadow
+  ✓ Blocked: proc filesystem                         /proc/self/environ
+  ✓ Blocked: device file                             /dev/null
+  ✓ Accepts valid path                               /tmp/tmpkqwlt_7a.bin
+
+─── Security: Subprocess Safety ───
+  ✓ Safe command works                               echo hello → ok
+  ✓ Timeout handling works                           sleep completed
+  ✓ Bad command fails gracefully                     rc=-1
+
+══════════════════════════════════════════════════════
+  Passed: 39  |  Failed: 0  |  Skipped: 11  |  Total: 50
+══════════════════════════════════════════════════════
+  All required checks passed! Revula is ready.
+
