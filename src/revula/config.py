@@ -26,6 +26,20 @@ CONFIG_FILE = CONFIG_DIR / "config.toml"
 GHIDRA_PROJECTS_DIR = CONFIG_DIR / "ghidra_projects"
 CACHE_DIR = CONFIG_DIR / "cache"
 
+
+def _default_allowed_dirs() -> list[str]:
+    """Return secure-by-default allowlisted directories."""
+    defaults = [
+        Path.home().resolve(strict=False),
+        Path("/tmp").resolve(strict=False),
+    ]
+    deduped: list[str] = []
+    for candidate in defaults:
+        candidate_str = str(candidate)
+        if candidate_str not in deduped:
+            deduped.append(candidate_str)
+    return deduped
+
 # Environment variable overrides (key = env var, value = config path)
 ENV_OVERRIDES: dict[str, str] = {
     "GHIDRA_PATH": "tools.ghidra_headless.path",
@@ -51,6 +65,7 @@ ENV_OVERRIDES: dict[str, str] = {
     "REVULA_ALLOWED_DIRS": "security.allowed_dirs",
     "REVULA_MAX_MEMORY_MB": "security.max_memory_mb",
     "REVULA_DEFAULT_TIMEOUT": "security.default_timeout",
+    "REVULA_MAX_TIMEOUT": "security.max_timeout",
 }
 
 # Tools to probe via shutil.which()
@@ -148,7 +163,7 @@ class ToolInfo:
 class SecurityConfig:
     """Security-related configuration."""
 
-    allowed_dirs: list[str] = field(default_factory=lambda: ["/"])
+    allowed_dirs: list[str] = field(default_factory=_default_allowed_dirs)
     max_memory_mb: int = 512
     default_timeout: int = 60
     max_timeout: int = 600
@@ -262,6 +277,8 @@ PYTHON_MODULES: dict[str, str] = {
     "tlsh": "pip install python-tlsh",
     "ssdeep": "pip install ppdeep  # or ssdeep (C-ext, may not build on Python 3.13)",
     "uncompyle6": "pip install uncompyle6",
+    "semgrep": "pip install semgrep",
+    "quark": "pip install quark-engine",
 }
 
 
@@ -360,16 +377,16 @@ def _probe_python_module(module_name: str) -> bool:
     try:
         if importlib.util.find_spec(module_name) is not None:
             return True
-    except (ModuleNotFoundError, ValueError):
-        pass
+    except (ModuleNotFoundError, ValueError) as e:
+        logger.debug("Module probe failed for %s: %s", module_name, e)
 
     # Try fallback
     alt = fallbacks.get(module_name)
     if alt:
         try:
             return importlib.util.find_spec(alt) is not None
-        except (ModuleNotFoundError, ValueError):
-            pass
+        except (ModuleNotFoundError, ValueError) as e:
+            logger.debug("Fallback module probe failed for %s via %s: %s", module_name, alt, e)
 
     return False
 
@@ -378,30 +395,85 @@ def _load_security_config(raw: dict[str, Any]) -> SecurityConfig:
     """Load security config from raw config dict + env vars."""
     sec = SecurityConfig()
 
+    def _parse_int(value: Any, field_name: str, *, minimum: int = 1) -> int | None:
+        try:
+            parsed = int(value)
+        except (TypeError, ValueError):
+            logger.warning("Invalid security config for %s: %r", field_name, value)
+            return None
+        if parsed < minimum:
+            logger.warning(
+                "Invalid security config for %s: %r (must be >= %d)",
+                field_name,
+                value,
+                minimum,
+            )
+            return None
+        return parsed
+
     # From config file
     sec_raw = raw.get("security", {})
     if isinstance(sec_raw, dict):
         if "allowed_dirs" in sec_raw:
-            sec.allowed_dirs = [str(d) for d in sec_raw["allowed_dirs"]]
+            raw_allowed = sec_raw["allowed_dirs"]
+            if isinstance(raw_allowed, list):
+                parsed_allowed = [str(d).strip() for d in raw_allowed if str(d).strip()]
+                if parsed_allowed:
+                    sec.allowed_dirs = parsed_allowed
+                else:
+                    logger.warning("security.allowed_dirs is empty; keeping secure defaults")
+            else:
+                logger.warning(
+                    "Invalid security.allowed_dirs value (expected list): %r",
+                    raw_allowed,
+                )
         if "max_memory_mb" in sec_raw:
-            sec.max_memory_mb = int(sec_raw["max_memory_mb"])
+            parsed = _parse_int(sec_raw["max_memory_mb"], "security.max_memory_mb")
+            if parsed is not None:
+                sec.max_memory_mb = parsed
         if "default_timeout" in sec_raw:
-            sec.default_timeout = int(sec_raw["default_timeout"])
+            parsed = _parse_int(sec_raw["default_timeout"], "security.default_timeout")
+            if parsed is not None:
+                sec.default_timeout = parsed
         if "max_timeout" in sec_raw:
-            sec.max_timeout = int(sec_raw["max_timeout"])
+            parsed = _parse_int(sec_raw["max_timeout"], "security.max_timeout")
+            if parsed is not None:
+                sec.max_timeout = parsed
 
     # Env var overrides
     allowed = os.environ.get("REVULA_ALLOWED_DIRS")
     if allowed:
-        sec.allowed_dirs = [d.strip() for d in allowed.split(":") if d.strip()]
+        parsed_allowed = [d.strip() for d in allowed.split(":") if d.strip()]
+        if parsed_allowed:
+            sec.allowed_dirs = parsed_allowed
+        else:
+            logger.warning("REVULA_ALLOWED_DIRS produced an empty allowlist; keeping secure defaults")
 
     mem = os.environ.get("REVULA_MAX_MEMORY_MB")
     if mem:
-        sec.max_memory_mb = int(mem)
+        parsed = _parse_int(mem, "REVULA_MAX_MEMORY_MB")
+        if parsed is not None:
+            sec.max_memory_mb = parsed
 
     timeout = os.environ.get("REVULA_DEFAULT_TIMEOUT")
     if timeout:
-        sec.default_timeout = int(timeout)
+        parsed = _parse_int(timeout, "REVULA_DEFAULT_TIMEOUT")
+        if parsed is not None:
+            sec.default_timeout = parsed
+
+    max_timeout = os.environ.get("REVULA_MAX_TIMEOUT")
+    if max_timeout:
+        parsed = _parse_int(max_timeout, "REVULA_MAX_TIMEOUT")
+        if parsed is not None:
+            sec.max_timeout = parsed
+
+    if sec.max_timeout < sec.default_timeout:
+        logger.warning(
+            "security.max_timeout (%d) is less than default_timeout (%d); using default_timeout",
+            sec.max_timeout,
+            sec.default_timeout,
+        )
+        sec.max_timeout = sec.default_timeout
 
     return sec
 
