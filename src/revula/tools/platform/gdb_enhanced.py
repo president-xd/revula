@@ -48,6 +48,7 @@ async def _run_gdb_batch(
         "arena info, heap search, tcache dump. Uses GEF/pwndbg if available."
     ),
     category="platform",
+    requires_tools=["gdb"],
     input_schema={
         "type": "object",
         "required": ["binary_path", "action"],
@@ -157,6 +158,7 @@ async def handle_gdb_heap(arguments: dict[str, Any]) -> list[dict[str, Any]]:
         "Find gadgets, build chains, search for specific patterns."
     ),
     category="platform",
+    requires_tools=["ropgadget"],
     input_schema={
         "type": "object",
         "required": ["binary_path", "action"],
