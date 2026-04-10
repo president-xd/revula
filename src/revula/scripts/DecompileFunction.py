@@ -32,8 +32,10 @@ def get_function(program, identifier):
         func = fm.getFunctionContaining(addr)
         if func is not None:
             return func
-    except (ValueError, Exception):
-        pass
+    except ValueError:
+        addr = None
+    except Exception as e:
+        println("WARNING: Address lookup failed: " + str(e))
 
     # Try as name
     funcs = list(fm.getFunctions(True))
@@ -125,8 +127,8 @@ def main():
                 locator = program.getDomainFile().getProjectLocator()
                 if locator is not None:
                     output_dir = str(locator.getLocation())
-            except Exception:
-                pass
+            except Exception as e:
+                println("WARNING: Could not resolve project location: " + str(e))
 
         if output_dir is None:
             import tempfile
