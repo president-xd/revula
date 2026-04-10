@@ -11,8 +11,8 @@ docker build -t revula:latest .
 ## Smoke Test
 
 ```bash
-docker run --rm revula:latest python -c "import revula; print(revula.__version__)"
-docker run --rm revula:latest python -c "from revula.server import _register_all_tools; from revula.tools import TOOL_REGISTRY; _register_all_tools(); print(TOOL_REGISTRY.count())"
+docker run --rm --entrypoint python revula:latest -c "import revula; print(revula.__version__)"
+docker run --rm --entrypoint python revula:latest -c "from revula.server import _register_all_tools; from revula.tools import TOOL_REGISTRY; _register_all_tools(); print(TOOL_REGISTRY.count())"
 ```
 
 ## Run Modes
@@ -29,7 +29,7 @@ docker run -i --rm \
 ### Interactive Shell
 
 ```bash
-docker run -it --rm revula:latest /bin/bash
+docker run -it --rm --entrypoint /bin/bash revula:latest
 ```
 
 ## Docker Compose
