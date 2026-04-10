@@ -2,7 +2,7 @@
 
 **Production-grade MCP server for universal reverse engineering automation.**
 
-Connect Claude Desktop, MCP-compatible IDEs, or custom tooling to a complete reverse engineering backend. One server, every RE tool, orchestrated through the [Model Context Protocol](https://modelcontextprotocol.io/).
+Connect Claude Desktop, MCP-compatible IDEs, or custom tooling to a broad reverse engineering backend through the [Model Context Protocol](https://modelcontextprotocol.io/).
 
 ---
 
@@ -158,7 +158,7 @@ pip install -e ".[full]"
 python scripts/test/validate_install.py
 ```
 
-The automated installer handles Python version checks, virtual environment creation, dependency installation, external tool detection, and configuration file generation.
+The automated installer handles Python version checks, dependency installation, external tool detection, and configuration file generation.
 
 ### Verify What's Available
 
@@ -870,13 +870,13 @@ The `TestVulnerabilityHardeningV3` suite in `test_security.py` enforces:
 
 ## Scripts & Automation
 
-All scripts are in `scripts/` and are fully implemented:
+Primary automation scripts live in `scripts/`:
 
 ### Installation
 
 | Script | Purpose |
 |--------|---------|
-| `scripts/install/install_all.sh` | Master installer: Python check, venv, deps, external tools, config |
+| `scripts/install/install_all.sh` | Master installer: Python check, deps, external tools, config |
 | `scripts/install/install_verify.sh` | Post-install verification: checks all dependencies and paths |
 
 ### Setup
@@ -902,7 +902,7 @@ All scripts are in `scripts/` and are fully implemented:
 
 | Script | Purpose |
 |--------|---------|
-| `scripts/docker/test.sh` | Automated Docker build and testing (tests all tools: Ghidra, angr, Frida) |
+| `scripts/docker/test.sh` | Automated Docker build and stdio-oriented smoke checks |
 | `scripts/docker/validate.sh` | Docker configuration validation |
 
 ---
