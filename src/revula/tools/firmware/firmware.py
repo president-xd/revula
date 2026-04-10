@@ -285,7 +285,7 @@ async def handle_firmware_baseaddr(
                     offset = int(parts[0], 16)
                     string_offsets.append(offset)
                 except ValueError:
-                    pass
+                    continue
 
         # Look for potential base addresses by finding pointer-like
         # values that reference string offsets when a base is added
