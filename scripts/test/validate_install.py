@@ -372,8 +372,8 @@ def check_path_traversal(report: ValidationReport) -> None:
     # Cleanup temp file
     try:
         os.unlink(safe_temp)
-    except OSError:
-        pass
+    except OSError as e:
+        print(f"  [WARN] Temp cleanup failed: {e}")
 
 
 # ---------------------------------------------------------------------------
@@ -471,8 +471,8 @@ def check_tool_registry(report: ValidationReport) -> None:
         try:
             from revula.server import _register_all_tools
             _register_all_tools()
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"  [WARN] Tool auto-registration failed: {e}")
 
         count = TOOL_REGISTRY.count()
         names = TOOL_REGISTRY.names()
