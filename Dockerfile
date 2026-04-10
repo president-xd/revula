@@ -16,7 +16,9 @@ FROM python:3.12-slim-bookworm AS builder
 # Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive \
     GHIDRA_VERSION=11.0.1 \
+    GHIDRA_DATE=20240130 \
     GHIDRA_SHA256=c5f2d39bd1d4c7f8c82c0559b53f223b6b887db8e38a09f45b645e87fc2d6e1a \
+    APKTOOL_VERSION=2.10.0 \
     GHIDRA_INSTALL_DIR=/opt/ghidra
 
 # Install build dependencies and all RE tools
@@ -52,11 +54,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Debugging tools
     gdb \
     gdb-multiarch \
+    lldb \
     strace \
     ltrace \
     # Disassemblers and binary tools
     binutils \
     binutils-multiarch \
+    binwalk \
+    upx-ucl \
     radare2 \
     rizin \
     qemu-user \
@@ -80,16 +85,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install Ghidra
 RUN mkdir -p ${GHIDRA_INSTALL_DIR} && \
     cd /tmp && \
-    wget -q https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghidra_${GHIDRA_VERSION}_build/ghidra_${GHIDRA_VERSION}_PUBLIC_20240130.zip && \
-    unzip -q ghidra_${GHIDRA_VERSION}_PUBLIC_*.zip && \
+    wget -q -O ghidra.zip "https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghidra_${GHIDRA_VERSION}_build/ghidra_${GHIDRA_VERSION}_PUBLIC_${GHIDRA_DATE}.zip" && \
+    echo "${GHIDRA_SHA256}  ghidra.zip" | sha256sum -c - && \
+    unzip -q ghidra.zip && \
     mv ghidra_${GHIDRA_VERSION}_PUBLIC/* ${GHIDRA_INSTALL_DIR}/ && \
-    rm -rf /tmp/ghidra_* && \
+    rm -rf /tmp/ghidra_* /tmp/ghidra.zip && \
     chmod +x ${GHIDRA_INSTALL_DIR}/support/analyzeHeadless
 
 # Install apktool
 RUN cd /usr/local/bin && \
-    wget -q https://raw.githubusercontent.com/iBotPeaches/Apktool/master/scripts/linux/apktool && \
-    wget -q https://bitbucket.org/iBotPeaches/apktool/downloads/apktool_2.9.3.jar -O apktool.jar && \
+    wget -q "https://raw.githubusercontent.com/iBotPeaches/Apktool/v${APKTOOL_VERSION}/scripts/linux/apktool" && \
+    wget -q "https://github.com/iBotPeaches/Apktool/releases/download/v${APKTOOL_VERSION}/apktool_${APKTOOL_VERSION}.jar" -O apktool.jar && \
     chmod +x apktool apktool.jar
 
 # Install jadx
@@ -123,7 +129,11 @@ RUN pip install --no-cache-dir \
     scapy>=2.5.0 \
     uncompyle6>=3.9.0 \
     flare-floss>=3.0.0 \
-    flare-capa>=7.0.0
+    flare-capa>=7.0.0 \
+    semgrep \
+    quark-engine \
+    ROPGadget \
+    ropper
 
 # =============================================================================
 # Stage 2: Runtime - Complete production image with all tools
@@ -153,11 +163,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Debugging tools
     gdb \
     gdb-multiarch \
+    lldb \
     strace \
     ltrace \
     # Disassemblers and binary tools
     binutils \
     binutils-multiarch \
+    binwalk \
+    upx-ucl \
     radare2 \
     rizin \
     qemu-user \
