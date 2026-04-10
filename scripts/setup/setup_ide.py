@@ -95,8 +95,8 @@ def detect_revula_command() -> dict:
         if result.returncode == 0:
             info(f"Using Python module mode: {python_path} -m revula.server")
             return {"command": python_path, "args": ["-m", "revula.server"]}
-    except Exception:
-        pass
+    except Exception as e:
+        warn(f"Python module probe failed: {e}")
 
     warn("Could not auto-detect revula. Using default 'revula' command.")
     warn("Make sure revula is installed: pip install -e .")
