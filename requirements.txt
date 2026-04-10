@@ -33,8 +33,12 @@ uncompyle6>=3.9.0
 flare-floss>=3.0.0
 flare-capa>=7.0.0
 
+# Optional — exploit helper CLIs
+ROPGadget
+ropper
+
 # NOTE: angr is intentionally omitted from this flat requirements file because it's ~2 GB.
 #   Use extras when desired: pip install "revula[angr]" (or revula[full]).
 #
-# NOTE: triton (binary analysis) is NOT available on PyPI.
-#   Build from source: https://github.com/JonathanSalwan/Triton
+# NOTE: Triton (binary-analysis DSE) has no maintained Linux PyPI wheel.
+#   Upstream source build is required: https://github.com/JonathanSalwan/Triton
