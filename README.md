@@ -170,18 +170,18 @@ This prints a table showing which external tools and Python modules are detected
 
 ### Docker Installation (Alternative)
 
-Revula can be run in Docker for isolated environments with all dependencies pre-configured:
+Revula can be run in Docker for an isolated, stdio-only environment with core and common optional dependencies pre-configured:
 
 ```bash
 # Build the Docker image
 docker build -t revula:latest .
 
 # Quick test
-docker run --rm revula:latest --version
-docker run --rm revula:latest --list-tools
+docker run --rm revula:latest python -c "import revula; print(revula.__version__)"
+docker run --rm revula:latest python -c "from revula.server import _register_all_tools; from revula.tools import TOOL_REGISTRY; _register_all_tools(); print(TOOL_REGISTRY.count())"
 
 # Run in stdio mode (for local MCP clients)
-docker run -i --rm -v $(pwd)/workspace:/workspace revula:latest
+docker run -i --rm -v $(pwd)/workspace:/workspace -v revula-data:/root/.revula revula:latest
 
 # Revula transport is stdio-only (no HTTP/SSE mode)
 # Run it attached to your MCP client process
@@ -203,10 +203,10 @@ docker run -i --rm -v $(pwd)/workspace:/workspace revula:latest
 ./scripts/docker/test.sh
 ```
 
-For complete Docker documentation including configuration, volumes, security, and troubleshooting, see **[DOCKER.md](DOCKER.md)**.
+For complete Docker documentation (stdio mode, volumes, compose usage, and troubleshooting), see **[DOCKER.md](DOCKER.md)**.
 
 **Note on Docker vs Native:**
-- Docker provides complete isolated environment with all tools pre-installed
+- Docker provides an isolated environment with core tooling pre-installed
 - Native installation offers better performance and direct system access
 - Choose based on your security and portability requirements
 
@@ -893,7 +893,7 @@ All scripts are in `scripts/` and are fully implemented:
 | Script | Purpose |
 |--------|---------|
 | `scripts/test/run_tests.sh` | Run full test suite with coverage |
-| `scripts/test/validate_install.py` | Comprehensive installation validator (526 lines) |
+| `scripts/test/validate_install.py` | Comprehensive installation validator |
 | `scripts/dev/add_tool.py` | Scaffold a new tool module (creates file, registers, adds test) |
 | `scripts/dev/lint_and_type.sh` | Run ruff + mypy |
 | `scripts/utils/download_frida_server.py` | Download frida-server for a target architecture |
