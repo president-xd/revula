@@ -7,6 +7,7 @@ and automated Frida Gadget injection for instrumentation without root.
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import shutil
@@ -24,6 +25,26 @@ def _find(name: str) -> str | None:
     return shutil.which(name)
 
 
+def _parse_text_payload(result: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """Parse the first JSON text payload returned by a tool call."""
+    if not result:
+        return None
+    text = result[0].get("text")
+    if not isinstance(text, str):
+        return None
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError:
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def _has_error_result(result: list[dict[str, Any]]) -> bool:
+    """Return True when a tool response is an error payload."""
+    payload = _parse_text_payload(result)
+    return bool(payload and payload.get("error") is True)
+
+
 # ---------------------------------------------------------------------------
 # Tool: re_android_repack
 # ---------------------------------------------------------------------------
@@ -38,6 +59,7 @@ def _find(name: str) -> str | None:
         "Actions: decode, build, sign, full_repack."
     ),
     category="android",
+    requires_tools=["apktool"],
     input_schema={
         "type": "object",
         "required": ["action"],
@@ -102,8 +124,22 @@ async def handle_repack(arguments: dict[str, Any]) -> list[dict[str, Any]]:
         if not apktool:
             return error_result("apktool not found. Install: https://ibotpeaches.github.io/Apktool/")
 
-        decode_dir = arguments.get("decode_dir") or tempfile.mkdtemp(prefix="revula_decode_")
-        cmd = [apktool, "d", str(file_path), "-o", decode_dir, "-f"]
+        decode_dir_arg = arguments.get("decode_dir")
+        if decode_dir_arg:
+            decode_dir = validate_path(
+                decode_dir_arg,
+                allowed_dirs=allowed_dirs,
+                must_exist=False,
+                path_kind="dir",
+            )
+            decode_dir.mkdir(parents=True, exist_ok=True)
+        else:
+            base_dir = Path(allowed_dirs[0]).expanduser() if allowed_dirs else Path(tempfile.gettempdir())
+            decode_dir = Path(tempfile.mkdtemp(prefix="revula_decode_", dir=str(base_dir)))
+            if allowed_dirs:
+                decode_dir = validate_path(str(decode_dir), allowed_dirs=allowed_dirs, path_kind="dir")
+
+        cmd = [apktool, "d", str(file_path), "-o", str(decode_dir), "-f"]
         proc = await safe_subprocess(cmd, timeout=120)
 
         if proc.returncode != 0:
@@ -111,7 +147,7 @@ async def handle_repack(arguments: dict[str, Any]) -> list[dict[str, Any]]:
 
         return text_result({
             "action": "decode",
-            "decode_dir": decode_dir,
+            "decode_dir": str(decode_dir),
             "output": proc.stdout[:5000],
         })
 
@@ -119,14 +155,21 @@ async def handle_repack(arguments: dict[str, Any]) -> list[dict[str, Any]]:
         decode_dir = arguments.get("decode_dir")
         if not decode_dir:
             return error_result("decode_dir required for build")
-        validate_path(decode_dir, allowed_dirs=allowed_dirs, path_kind="dir")
+        decode_path = validate_path(decode_dir, allowed_dirs=allowed_dirs, path_kind="dir")
 
         apktool = _find("apktool")
         if not apktool:
             return error_result("apktool not found")
 
-        output_apk = arguments.get("output_apk") or os.path.join(decode_dir, "dist", "output.apk")
-        cmd = [apktool, "b", decode_dir, "-o", output_apk]
+        output_apk = arguments.get("output_apk") or str(decode_path / "dist" / "output.apk")
+        output_path = validate_path(
+            output_apk,
+            allowed_dirs=allowed_dirs,
+            must_exist=False,
+            path_kind="file",
+        )
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        cmd = [apktool, "b", str(decode_path), "-o", str(output_path)]
         proc = await safe_subprocess(cmd, timeout=120)
 
         if proc.returncode != 0:
@@ -134,38 +177,46 @@ async def handle_repack(arguments: dict[str, Any]) -> list[dict[str, Any]]:
 
         return text_result({
             "action": "build",
-            "output_apk": output_apk,
-            "size": os.path.getsize(output_apk) if os.path.exists(output_apk) else 0,
+            "output_apk": str(output_path),
+            "size": os.path.getsize(output_path) if output_path.exists() else 0,
         })
 
     elif action == "zipalign":
         apk_path = arguments.get("apk_path") or arguments.get("output_apk")
         if not apk_path:
             return error_result("apk_path required for zipalign")
+        apk_file = validate_binary_path(apk_path, allowed_dirs=allowed_dirs)
 
         zipalign = _find("zipalign")
         if not zipalign:
             return error_result("zipalign not found. Install Android SDK Build Tools.")
 
-        aligned = apk_path.replace(".apk", "-aligned.apk")
-        cmd = [zipalign, "-f", "4", apk_path, aligned]
+        aligned = validate_path(
+            str(apk_file.with_name(f"{apk_file.stem}-aligned.apk")),
+            allowed_dirs=allowed_dirs,
+            must_exist=False,
+        )
+        cmd = [zipalign, "-f", "4", str(apk_file), str(aligned)]
         proc = await safe_subprocess(cmd, timeout=60)
 
         if proc.returncode != 0:
             return error_result(f"zipalign failed: {proc.stderr}")
 
         # Replace original
-        shutil.move(aligned, apk_path)
-        return text_result({"action": "zipalign", "output": apk_path})
+        shutil.move(str(aligned), str(apk_file))
+        return text_result({"action": "zipalign", "output": str(apk_file)})
 
     elif action == "sign":
         apk_path = arguments.get("apk_path") or arguments.get("output_apk")
         if not apk_path:
             return error_result("apk_path required for sign")
+        apk_file = validate_binary_path(apk_path, allowed_dirs=allowed_dirs)
 
         keystore = arguments.get("keystore")
         ks_pass = arguments.get("keystore_pass", "android")
         alias = arguments.get("key_alias", "androiddebugkey")
+        if keystore:
+            keystore = str(validate_path(keystore, allowed_dirs=allowed_dirs))
 
         # Try apksigner first, fall back to jarsigner
         apksigner = _find("apksigner")
@@ -176,40 +227,44 @@ async def handle_repack(arguments: dict[str, Any]) -> list[dict[str, Any]]:
                     "--ks", keystore,
                     "--ks-pass", f"pass:{ks_pass}",
                     "--ks-key-alias", alias,
-                    apk_path,
+                    str(apk_file),
                 ]
             else:
                 # Generate a debug keystore
                 debug_ks = _ensure_debug_keystore()
+                if allowed_dirs:
+                    debug_ks = str(validate_path(debug_ks, allowed_dirs=allowed_dirs))
                 cmd = [
                     apksigner, "sign",
                     "--ks", debug_ks,
                     "--ks-pass", "pass:android",
                     "--ks-key-alias", "androiddebugkey",
-                    apk_path,
+                    str(apk_file),
                 ]
             proc = await safe_subprocess(cmd, timeout=60)
             if proc.returncode != 0:
                 return error_result(f"apksigner failed: {proc.stderr}")
-            return text_result({"action": "sign", "signer": "apksigner", "apk": apk_path})
+            return text_result({"action": "sign", "signer": "apksigner", "apk": str(apk_file)})
 
         jarsigner = _find("jarsigner")
         if jarsigner:
             if not keystore:
                 keystore = _ensure_debug_keystore()
+                if allowed_dirs:
+                    keystore = str(validate_path(keystore, allowed_dirs=allowed_dirs))
             cmd = [
                 jarsigner,
                 "-keystore", keystore,
                 "-storepass", ks_pass,
                 "-sigalg", "SHA256withRSA",
                 "-digestalg", "SHA-256",
-                apk_path,
+                str(apk_file),
                 alias,
             ]
             proc = await safe_subprocess(cmd, timeout=60)
             if proc.returncode != 0:
                 return error_result(f"jarsigner failed: {proc.stderr}")
-            return text_result({"action": "sign", "signer": "jarsigner", "apk": apk_path})
+            return text_result({"action": "sign", "signer": "jarsigner", "apk": str(apk_file)})
 
         return error_result("No signing tool found (apksigner or jarsigner)")
 
@@ -224,43 +279,85 @@ async def handle_repack(arguments: dict[str, Any]) -> list[dict[str, Any]]:
             **arguments,
             "action": "decode",
         })
-        if any("error" in str(r) for r in decode_result):
+        if _has_error_result(decode_result):
             return decode_result
 
-        decode_dir = arguments.get("decode_dir") or tempfile.mkdtemp(prefix="revula_decode_")
+        decoded_payload = _parse_text_payload(decode_result)
+        if not decoded_payload or "decode_dir" not in decoded_payload:
+            return error_result("Decode step failed to return decode_dir")
+        decode_dir_path = validate_path(
+            str(decoded_payload["decode_dir"]),
+            allowed_dirs=allowed_dirs,
+            path_kind="dir",
+        )
 
         # Step 2: Apply smali patches
         patches_applied = 0
         smali_patches = arguments.get("smali_patches", [])
+        decode_root = decode_dir_path.resolve()
         for patch in smali_patches:
-            smali_file = os.path.join(decode_dir, patch.get("file", ""))
-            if os.path.exists(smali_file):
-                content = Path(smali_file).read_text(errors="replace")
+            rel_file = patch.get("file", "")
+            if not rel_file:
+                continue
+            smali_file = (decode_root / rel_file).resolve()
+            if not smali_file.is_relative_to(decode_root):
+                return error_result(f"Invalid smali patch path outside decode_dir: {rel_file}")
+            if smali_file.exists():
+                content = smali_file.read_text(errors="replace")
                 find = patch.get("find", "")
                 replace = patch.get("replace", "")
                 if find in content:
-                    content = content.replace(find, replace)
-                    Path(smali_file).write_text(content)
+                    smali_file.write_text(content.replace(find, replace))
                     patches_applied += 1
 
         # Step 3: Build
-        output_apk = arguments.get("output_apk") or str(file_path).replace(
-            ".apk", "-repack.apk"
+        output_apk_arg = arguments.get("output_apk") or str(file_path.with_name(f"{file_path.stem}-repack.apk"))
+        output_apk = validate_path(
+            output_apk_arg,
+            allowed_dirs=allowed_dirs,
+            must_exist=False,
+            path_kind="file",
         )
-        build_args = {**arguments, "action": "build", "decode_dir": decode_dir, "output_apk": output_apk}
-        await handle_repack(build_args)
+        output_apk.parent.mkdir(parents=True, exist_ok=True)
 
-        # Step 4: Sign
-        sign_args = {**arguments, "action": "sign", "apk_path": output_apk}
-        await handle_repack(sign_args)
+        build_result = await handle_repack({
+            **arguments,
+            "action": "build",
+            "decode_dir": str(decode_dir_path),
+            "output_apk": str(output_apk),
+        })
+        if _has_error_result(build_result):
+            return build_result
+
+        # Step 4: Zipalign (if available)
+        zipaligned = False
+        if _find("zipalign"):
+            zipalign_result = await handle_repack({
+                **arguments,
+                "action": "zipalign",
+                "apk_path": str(output_apk),
+            })
+            if _has_error_result(zipalign_result):
+                return zipalign_result
+            zipaligned = True
+
+        # Step 5: Sign
+        sign_result = await handle_repack({
+            **arguments,
+            "action": "sign",
+            "apk_path": str(output_apk),
+        })
+        if _has_error_result(sign_result):
+            return sign_result
 
         return text_result({
             "action": "full_repack",
             "original": str(file_path),
-            "output": output_apk,
-            "decode_dir": decode_dir,
+            "output": str(output_apk),
+            "decode_dir": str(decode_dir_path),
             "patches_applied": patches_applied,
-            "size": os.path.getsize(output_apk) if os.path.exists(output_apk) else 0,
+            "zipaligned": zipaligned,
+            "size": os.path.getsize(output_apk) if output_apk.exists() else 0,
         })
 
     return error_result(f"Unknown action: {action}")
@@ -308,6 +405,7 @@ def _ensure_debug_keystore() -> str:
         "smali to load the library, rebuilds and signs."
     ),
     category="android",
+    requires_tools=["apktool"],
     input_schema={
         "type": "object",
         "required": ["apk_path", "gadget_path"],
@@ -359,7 +457,15 @@ async def handle_gadget_inject(arguments: dict[str, Any]) -> list[dict[str, Any]
         return error_result("apktool required for gadget injection")
 
     # Step 1: Decode
-    decode_dir = tempfile.mkdtemp(prefix="revula_gadget_")
+    base_dir = Path(allowed_dirs[0]).expanduser() if allowed_dirs else Path(tempfile.gettempdir())
+    decode_dir_path = Path(tempfile.mkdtemp(prefix="revula_gadget_", dir=str(base_dir)))
+    if allowed_dirs:
+        decode_dir_path = validate_path(
+            str(decode_dir_path),
+            allowed_dirs=allowed_dirs,
+            path_kind="dir",
+        )
+    decode_dir = str(decode_dir_path)
     cmd = [apktool, "d", str(file_path), "-o", decode_dir, "-f"]
     proc = await safe_subprocess(cmd, timeout=120)
     if proc.returncode != 0:
@@ -452,9 +558,16 @@ async def handle_gadget_inject(arguments: dict[str, Any]) -> list[dict[str, Any]
 
     # Step 6: Rebuild
     if not output_apk:
-        output_apk = str(file_path).replace(".apk", "-gadget.apk")
+        output_apk = str(file_path.with_name(f"{file_path.stem}-gadget.apk"))
+    output_apk_path = validate_path(
+        output_apk,
+        allowed_dirs=allowed_dirs,
+        must_exist=False,
+        path_kind="file",
+    )
+    output_apk_path.parent.mkdir(parents=True, exist_ok=True)
 
-    cmd = [apktool, "b", decode_dir, "-o", output_apk]
+    cmd = [apktool, "b", decode_dir, "-o", str(output_apk_path)]
     proc = await safe_subprocess(cmd, timeout=120)
     if proc.returncode != 0:
         return error_result(f"Rebuild failed: {proc.stderr}")
@@ -462,17 +575,19 @@ async def handle_gadget_inject(arguments: dict[str, Any]) -> list[dict[str, Any]
     # Step 7: Sign
     sign_args = {
         "action": "sign",
-        "apk_path": output_apk,
+        "apk_path": str(output_apk_path),
     }
     if config_arg:
         sign_args["__config__"] = config_arg
-    await handle_repack(sign_args)
+    sign_result = await handle_repack(sign_args)
+    if _has_error_result(sign_result):
+        return sign_result
 
     return text_result({
-        "output_apk": output_apk,
+        "output_apk": str(output_apk_path),
         "gadget_injected": gadget_dest,
         "smali_patched": injected,
         "arch": arch,
         "decode_dir": decode_dir,
-        "size": os.path.getsize(output_apk) if os.path.exists(output_apk) else 0,
+        "size": os.path.getsize(output_apk_path) if output_apk_path.exists() else 0,
     })
