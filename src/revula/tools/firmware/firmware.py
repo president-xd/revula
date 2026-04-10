@@ -77,7 +77,7 @@ async def handle_firmware_extract(
 
     elif action == "extract":
         if output_dir:
-            validate_path(output_dir, allowed_dirs=allowed_dirs)
+            validate_path(output_dir, allowed_dirs=allowed_dirs, path_kind="dir")
             cmd = ["binwalk", "-e", "-C", output_dir, str(file_path)]
         else:
             cmd = ["binwalk", "-e", str(file_path)]

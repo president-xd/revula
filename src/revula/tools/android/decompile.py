@@ -307,7 +307,7 @@ async def handle_smali_assemble(arguments: dict[str, Any]) -> list[dict[str, Any
     output_dex = arguments.get("output_dex")
     config = arguments.get("__config__")
     allowed_dirs = config.security.allowed_dirs if config else None
-    dir_path = validate_path(smali_dir, allowed_dirs=allowed_dirs)
+    dir_path = validate_path(smali_dir, allowed_dirs=allowed_dirs, path_kind="dir")
 
     smali_tool = _find_tool("smali")
     if not smali_tool:

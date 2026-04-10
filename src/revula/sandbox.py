@@ -20,7 +20,7 @@ import subprocess
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -103,9 +103,10 @@ def validate_path(
     allow_relative: bool = False,
     max_size_mb: float = 500.0,
     allowed_extensions: list[str] | None = None,
+    path_kind: Literal["file", "dir", "any"] = "file",
 ) -> Path:
     """
-    Validate and resolve a file path for security.
+    Validate and resolve a path for security.
 
     Rules:
     1. No null bytes in path (truncation attack prevention)
@@ -115,8 +116,8 @@ def validate_path(
     5. Must not contain path traversal components
     6. Must be under one of the allowed directories (if specified)
     7. Extension whitelist (if specified)
-    8. File size limit (if must_exist)
-    9. Must be a regular file (not device, pipe, socket)
+    8. Type check based on path_kind (file/dir/any) when must_exist=True
+    9. File size limit (files only, if must_exist=True)
 
     Returns the resolved Path.
     """
@@ -125,6 +126,10 @@ def validate_path(
         raise PathValidationError("Null byte in path — rejected")
 
     p = Path(path)
+    if path_kind not in {"file", "dir", "any"}:
+        raise ValueError(
+            f"Invalid path_kind '{path_kind}'. Expected one of: file, dir, any."
+        )
 
     if not p.is_absolute():
         if allow_relative:
@@ -185,7 +190,7 @@ def validate_path(
             )
 
     # Extension whitelist
-    if allowed_extensions:
+    if allowed_extensions and path_kind == "file":
         ext = resolved.suffix.lower()
         if ext not in allowed_extensions:
             raise PathValidationError(
@@ -196,19 +201,29 @@ def validate_path(
     if must_exist:
         if not resolved.exists():
             raise PathValidationError(f"Path does not exist: {resolved}")
-        if not resolved.is_file():
-            raise PathValidationError(
-                f"Path is not a regular file: {resolved}"
-            )
-        # File size limit
-        try:
-            size_mb = resolved.stat().st_size / (1024 * 1024)
-            if size_mb > max_size_mb:
+        if path_kind == "file":
+            if not resolved.is_file():
                 raise PathValidationError(
-                    f"File too large: {size_mb:.1f}MB > {max_size_mb}MB limit"
+                    f"Path is not a regular file: {resolved}"
                 )
-        except OSError as e:
-            raise PathValidationError(f"Cannot stat file {resolved}: {e}") from e
+        elif path_kind == "dir":
+            if not resolved.is_dir():
+                raise PathValidationError(f"Path is not a directory: {resolved}")
+        elif not (resolved.is_file() or resolved.is_dir()):
+            raise PathValidationError(
+                f"Path is not a regular file or directory: {resolved}"
+            )
+
+        if resolved.is_file():
+            # File size limit
+            try:
+                size_mb = resolved.stat().st_size / (1024 * 1024)
+                if size_mb > max_size_mb:
+                    raise PathValidationError(
+                        f"File too large: {size_mb:.1f}MB > {max_size_mb}MB limit"
+                    )
+            except OSError as e:
+                raise PathValidationError(f"Cannot stat file {resolved}: {e}") from e
 
     return resolved
 

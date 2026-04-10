@@ -175,6 +175,18 @@ class TestValidatePathFileType:
         with pytest.raises(PathValidationError):
             validate_path(str(subdir), [str(tmp_dir)])
 
+    def test_directory_allowed_when_path_kind_dir(self, tmp_dir: Path) -> None:
+        subdir = tmp_dir / "subdir"
+        subdir.mkdir()
+        result = validate_path(str(subdir), [str(tmp_dir)], path_kind="dir")
+        assert result == subdir.resolve()
+
+    def test_file_rejected_when_path_kind_dir(self, tmp_dir: Path) -> None:
+        target = tmp_dir / "target.bin"
+        target.write_bytes(b"\x00")
+        with pytest.raises(PathValidationError, match=r"[Dd]irectory"):
+            validate_path(str(target), [str(tmp_dir)], path_kind="dir")
+
     def test_symlink_inside_allowed_dir(self, tmp_dir: Path) -> None:
         target = tmp_dir / "real.bin"
         target.write_bytes(b"\x00")

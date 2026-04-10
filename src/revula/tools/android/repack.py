@@ -119,7 +119,7 @@ async def handle_repack(arguments: dict[str, Any]) -> list[dict[str, Any]]:
         decode_dir = arguments.get("decode_dir")
         if not decode_dir:
             return error_result("decode_dir required for build")
-        validate_path(decode_dir, allowed_dirs=allowed_dirs)
+        validate_path(decode_dir, allowed_dirs=allowed_dirs, path_kind="dir")
 
         apktool = _find("apktool")
         if not apktool:

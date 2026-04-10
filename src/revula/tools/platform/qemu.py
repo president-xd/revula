@@ -112,7 +112,7 @@ async def handle_qemu_user(arguments: dict[str, Any]) -> list[dict[str, Any]]:
     cmd: list[str] = [qemu_bin]
 
     if sysroot:
-        validate_path(sysroot, allowed_dirs=allowed_dirs)
+        validate_path(sysroot, allowed_dirs=allowed_dirs, path_kind="dir")
         cmd.extend(["-L", sysroot])
 
     if action == "run":
