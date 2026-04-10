@@ -102,6 +102,40 @@ class TestConfig:
         assert cfg.tools["ghidra_headless"].path == str(fake_ghidra)
         assert cfg.tools["retdec_decompiler"].path == str(fake_retdec)
 
+    def test_invalid_security_env_values_fall_back_to_defaults(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from revula import config as config_mod
+
+        monkeypatch.setattr(config_mod, "_load_config_file", lambda: {})
+        monkeypatch.setenv("REVULA_MAX_MEMORY_MB", "not-a-number")
+        monkeypatch.setenv("REVULA_DEFAULT_TIMEOUT", "invalid")
+        monkeypatch.setenv("REVULA_MAX_TIMEOUT", "-1")
+        monkeypatch.setenv("REVULA_ALLOWED_DIRS", ":::")
+
+        cfg = config_mod.load_config()
+        defaults = config_mod.SecurityConfig()
+
+        assert cfg.security.max_memory_mb == defaults.max_memory_mb
+        assert cfg.security.default_timeout == defaults.default_timeout
+        assert cfg.security.max_timeout == defaults.max_timeout
+        assert cfg.security.allowed_dirs == defaults.allowed_dirs
+
+    def test_security_timeout_clamps_max_timeout(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from revula import config as config_mod
+
+        monkeypatch.setattr(config_mod, "_load_config_file", lambda: {})
+        monkeypatch.setenv("REVULA_DEFAULT_TIMEOUT", "120")
+        monkeypatch.setenv("REVULA_MAX_TIMEOUT", "60")
+
+        cfg = config_mod.load_config()
+        assert cfg.security.default_timeout == 120
+        assert cfg.security.max_timeout == 120
+
 
 # ---------------------------------------------------------------------------
 # Sandbox Tests
@@ -195,6 +229,25 @@ class TestSandbox:
         assert not result.success
         assert "Required external tool 'binwalk' is not installed." in result.stderr
         assert "apt install binwalk" in result.stderr
+
+
+class TestServerLogging:
+    """Server-side logging helpers."""
+
+    def test_truncate_args_redacts_sensitive_values(self) -> None:
+        from revula.server import _truncate_args
+
+        rendered = _truncate_args({
+            "api_key": "supersecret",
+            "tokenValue": "another-secret",
+            "keystore_pass": "android",
+            "normal": "visible",
+        })
+        assert "supersecret" not in rendered
+        assert "another-secret" not in rendered
+        assert "android" not in rendered
+        assert "<redacted>" in rendered
+        assert "visible" in rendered
 
 
 class TestCoverageTool:
