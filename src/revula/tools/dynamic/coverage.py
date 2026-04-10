@@ -14,6 +14,7 @@ import struct
 from pathlib import Path
 from typing import Any
 
+from revula.config import ToolNotAvailableError
 from revula.sandbox import safe_subprocess, validate_binary_path, validate_path
 from revula.tools import TOOL_REGISTRY, error_result, text_result
 
@@ -184,7 +185,12 @@ async def _collect_drcov(
     binary: Path, args: list[str], output_path: str, timeout: int, config: Any
 ) -> list[dict[str, Any]]:
     """Collect coverage with DynamoRIO drcov."""
-    drrun = config.tool_paths.get("drrun", "drrun") if config else "drrun"
+    drrun = "drrun"
+    if config:
+        try:
+            drrun = config.require_tool("drrun")
+        except ToolNotAvailableError as e:
+            return error_result(str(e))
 
     cmd = [
         drrun,
