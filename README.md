@@ -183,12 +183,9 @@ docker run --rm revula:latest --list-tools
 # Run in stdio mode (for local MCP clients)
 docker run -i --rm -v $(pwd)/workspace:/workspace revula:latest
 
-# Run in SSE mode (for remote access)
-docker run -d -p 8000:8000 -v $(pwd)/workspace:/workspace \
-  revula:latest --sse --host 0.0.0.0 --port 8000
-
-# Using docker-compose (recommended)
-docker-compose --profile sse up -d
+# Revula transport is stdio-only (no HTTP/SSE mode)
+# Run it attached to your MCP client process
+# (for Docker usage, run your MCP client inside the same container/environment)
 ```
 
 **What's included in the Docker image:**
@@ -631,25 +628,23 @@ python scripts/setup/setup_config_toml.py
 Example configuration:
 
 ```toml
-[tools]
-ghidra_install = "/opt/ghidra"
-r2_path = "/usr/bin/radare2"
-ida_path = "/opt/idapro"
-jadx_path = "/usr/local/bin/jadx"
+[tools.ghidra_headless]
+path = "/opt/ghidra/support/analyzeHeadless"
+
+[tools.radare2]
+path = "/usr/bin/radare2"
+
+[tools.jadx]
+path = "/usr/local/bin/jadx"
+
+[tools.retdec_decompiler]
+path = "/usr/local/bin/retdec-decompiler"
 
 [security]
 max_memory_mb = 512
-timeout_seconds = 60
+default_timeout = 60
+max_timeout = 600
 allowed_dirs = ["/home/user/samples", "/tmp/analysis"]
-
-[cache]
-dir = "~/.revula/cache"
-max_entries = 256
-ttl_seconds = 600
-
-[rate_limit]
-global_rpm = 120
-per_tool_rpm = 30
 ```
 
 ### Environment Variables
@@ -657,11 +652,10 @@ per_tool_rpm = 30
 Environment variables override config file values:
 
 ```bash
-export GHIDRA_INSTALL=/opt/ghidra          # Ghidra installation path
-export REVULA_TIMEOUT=120                  # Subprocess timeout (seconds)
-export REVULA_MAX_MEMORY=1024              # Memory limit (MB)
-export VT_API_KEY=your-key-here            # VirusTotal API key
-export HA_API_KEY=your-key-here            # Hybrid Analysis API key
+export GHIDRA_HEADLESS=/opt/ghidra/support/analyzeHeadless  # Ghidra headless binary
+export RETDEC_PATH=/usr/local/bin/retdec-decompiler         # RetDec decompiler binary
+export REVULA_DEFAULT_TIMEOUT=120                            # Subprocess timeout (seconds)
+export REVULA_MAX_MEMORY_MB=1024                             # Memory limit (MB)
 ```
 
 ---
@@ -820,7 +814,7 @@ revula operates on the principle that **user-supplied arguments are untrusted**.
 
 - **Global limit:** 120 requests per minute (configurable).
 - **Per-tool limit:** 30 requests per minute (configurable).
-- **Cache TTL:** 10-minute TTL on read-only results, 256-entry LRU.
+- **Result cache policy:** fail-closed explicit opt-in per tool (`cacheable=True`); mutating/stateful tools are never cached by default.
 - **Session TTL:** Idle sessions auto-cleaned after 30 minutes.
 
 ---
@@ -828,7 +822,7 @@ revula operates on the principle that **user-supplied arguments are untrusted**.
 ## Testing
 
 ```bash
-# Run all 283 tests
+# Run full test suite
 python -m pytest tests/ --timeout=30
 
 # With coverage
@@ -850,7 +844,7 @@ python -m pytest tests/test_security.py -v   # Security invariant tests
 bash scripts/test/run_tests.sh
 ```
 
-### Test Categories (161 tests)
+### Test Categories
 
 | Suite | Tests | Covers |
 |-------|-------|--------|
@@ -1007,7 +1001,7 @@ These tools produce clear "tool not found" errors when backends are missing:
 - **Static analysis:** Sub-second for most operations on files under 100 MB
 - **Disassembly:** Capstone disassembles ~1 MB/s; radare2 adds full analysis overhead
 - **Subprocess calls:** Each external tool invocation has ~50-200 ms overhead from process spawn
-- **Caching:** Repeat calls to deterministic tools (disassembly, parsing) return instantly from cache
+- **Caching:** Result caching is explicit opt-in per tool; unless enabled, calls execute fresh
 - **Rate limiting:** 120 requests/minute global, 30/minute per tool (configurable)
 
 ### Known Limitations
@@ -1015,7 +1009,7 @@ These tools produce clear "tool not found" errors when backends are missing:
 1. **No Windows native support.** Designed for Linux. macOS works for most tools. Windows requires WSL2.
 2. **stdio transport only.** There is no HTTP/SSE server. Revula must run on the same machine as your IDE (or be piped via SSH/Docker). This is a deliberate design choice for security: MCP over stdio is simpler and avoids exposing a network socket.
 3. **No GUI.** This is a headless MCP server. Use Claude Desktop, VS Code Copilot, Cursor, or another MCP client for the interface.
-4. **Large binary analysis.** Files over 500 MB may hit the default memory limit (512 MB). Increase via `REVULA_MAX_MEMORY`.
+4. **Large binary analysis.** Files over 500 MB may hit the default memory limit (512 MB). Increase via `REVULA_MAX_MEMORY_MB`.
 5. **angr install size.** The `angr` optional dependency is ~2 GB and takes several minutes to install.
 6. **Frida version coupling.** Frida client and server versions must match exactly. Use `scripts/utils/download_frida_server.py` to get the right version.
 7. **Single-user design.** The server handles one MCP client at a time via stdio. There is no multi-tenant isolation. Each IDE/client spawns its own server process.
@@ -1034,8 +1028,9 @@ python --version
 # Check MCP is installed
 python -c "import mcp; print(mcp.__version__)"
 
-# Run with debug logging
-REVULA_LOG_LEVEL=DEBUG revula
+# Run and capture server logs from stderr
+revula 2> revula.log
+tail -f revula.log
 ```
 
 ### Tool Says "not found"
@@ -1069,13 +1064,8 @@ Alternatively, set the value via environment variable. The server will use the c
 Error: Rate limit exceeded for tool re_disasm
 ```
 
-Increase limits in config:
-
-```toml
-[rate_limit]
-global_rpm = 240
-per_tool_rpm = 60
-```
+Rate limits are currently initialized from code defaults (`global_rpm=120`, `per_tool_rpm=30`, `burst_size=10`).
+If you need different limits, adjust `RateLimitConfig(...)` in `src/revula/server.py` and restart.
 
 ### Frida Connection Issues
 
