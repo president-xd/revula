@@ -8,9 +8,10 @@ inject scripts, Java-layer hooking, method tracing, and common bypasses
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import re
 import textwrap
-import time
 from typing import Any
 
 from revula.session import FridaSession, SessionManager
@@ -186,6 +187,7 @@ SCRIPT_ANTI_DEBUG_BYPASS = textwrap.dedent("""\
             },
         },
     },
+    requires_modules=["frida"],
 )
 async def handle_frida_spawn(arguments: dict[str, Any]) -> list[dict[str, Any]]:
     """Spawn app with Frida."""
@@ -229,6 +231,7 @@ async def handle_frida_spawn(arguments: dict[str, Any]) -> list[dict[str, Any]]:
         session = dev.attach(pid)
 
         messages: list[dict[str, Any]] = []
+        loaded_scripts: dict[str, Any] = {}
 
         if combined_script:
             frida_script = session.create_script(combined_script)
@@ -238,6 +241,7 @@ async def handle_frida_spawn(arguments: dict[str, Any]) -> list[dict[str, Any]]:
 
             frida_script.on("message", on_message)
             frida_script.load()
+            loaded_scripts["startup"] = frida_script
 
         if not pause:
             dev.resume(pid)
@@ -248,10 +252,12 @@ async def handle_frida_spawn(arguments: dict[str, Any]) -> list[dict[str, Any]]:
             device_type=device_id or dev.id,
             target_name=package,
             pid=pid,
+            frida_session=session,
+            scripts=loaded_scripts,
         )
         session_id = await sm.create_session(frida_sess)
 
-        time.sleep(0.5)  # Wait for initial messages
+        await asyncio.sleep(0.5)  # Wait for initial messages
 
         return text_result({
             "session_id": session_id,
@@ -299,6 +305,7 @@ async def handle_frida_spawn(arguments: dict[str, Any]) -> list[dict[str, Any]]:
             },
         },
     },
+    requires_modules=["frida"],
 )
 async def handle_frida_attach(arguments: dict[str, Any]) -> list[dict[str, Any]]:
     """Attach Frida to running process."""
@@ -333,6 +340,7 @@ async def handle_frida_attach(arguments: dict[str, Any]) -> list[dict[str, Any]]
             target_pid = session.pid
 
         messages: list[dict[str, Any]] = []
+        loaded_scripts: dict[str, Any] = {}
 
         if script_code:
             frida_script = session.create_script(script_code)
@@ -342,16 +350,19 @@ async def handle_frida_attach(arguments: dict[str, Any]) -> list[dict[str, Any]]
 
             frida_script.on("message", on_message)
             frida_script.load()
+            loaded_scripts["attach"] = frida_script
 
         sm = _get_session_mgr(arguments)
         frida_sess = FridaSession(
             device_type=device_id or dev.id,
             target_name=package or str(pid),
             pid=target_pid,
+            frida_session=session,
+            scripts=loaded_scripts,
         )
         session_id = await sm.create_session(frida_sess)
 
-        time.sleep(0.3)
+        await asyncio.sleep(0.3)
 
         return text_result({
             "session_id": session_id,
@@ -430,6 +441,7 @@ async def handle_frida_attach(arguments: dict[str, Any]) -> list[dict[str, Any]]
             },
         },
     },
+    requires_modules=["frida"],
 )
 async def handle_hook(arguments: dict[str, Any]) -> list[dict[str, Any]]:
     """Install Java method hooks."""
@@ -556,6 +568,7 @@ async def handle_hook(arguments: dict[str, Any]) -> list[dict[str, Any]]:
             },
         },
     },
+    requires_modules=["frida"],
 )
 async def handle_trace(arguments: dict[str, Any]) -> list[dict[str, Any]]:
     """Trace method/function/syscall calls."""
@@ -739,6 +752,7 @@ async def handle_trace(arguments: dict[str, Any]) -> list[dict[str, Any]]:
             },
         },
     },
+    requires_modules=["frida"],
 )
 async def handle_bypass(arguments: dict[str, Any]) -> list[dict[str, Any]]:
     """Apply security bypasses."""
@@ -823,6 +837,7 @@ async def handle_bypass(arguments: dict[str, Any]) -> list[dict[str, Any]]:
             },
         },
     },
+    requires_modules=["frida"],
 )
 async def handle_memory(arguments: dict[str, Any]) -> list[dict[str, Any]]:
     """Android memory analysis."""
@@ -841,16 +856,17 @@ async def handle_memory(arguments: dict[str, Any]) -> list[dict[str, Any]]:
     elif action == "list_ranges":
         module = arguments.get("module_name", "")
         if module:
+            safe_module = _js_escape(module)
             script = f"""
-            var mod = Process.findModuleByName('{module}');
+            var mod = Process.findModuleByName('{safe_module}');
             if (mod) {{
                 var ranges = mod.enumerateRanges('---');
-                send({{type: 'result', action: 'list_ranges', module: '{module}',
+                send({{type: 'result', action: 'list_ranges', module: '{safe_module}',
                        data: ranges.map(function(r) {{
                            return {{base: r.base.toString(), size: r.size, protection: r.protection}};
                        }})}});
             }} else {{
-                send({{type: 'error', message: 'Module not found: {module}'}});
+                send({{type: 'error', message: 'Module not found: {safe_module}'}});
             }}
             """
         else:
@@ -866,8 +882,9 @@ async def handle_memory(arguments: dict[str, Any]) -> list[dict[str, Any]]:
         pattern = arguments.get("pattern", "")
         if not pattern:
             return error_result("pattern required for search_pattern")
+        safe_pattern = _js_escape(pattern)
         script = f"""
-        var pattern = '{pattern}';
+        var pattern = '{safe_pattern}';
         var ranges = Process.enumerateRanges('r--');
         var results = [];
         ranges.forEach(function(range) {{
@@ -886,22 +903,23 @@ async def handle_memory(arguments: dict[str, Any]) -> list[dict[str, Any]]:
         cls = arguments.get("class_name")
         if not cls:
             return error_result("class_name required")
+        safe_cls = _js_escape(cls)
         script = f"""
         Java.perform(function() {{
-            Java.choose('{cls}', {{
+            Java.choose('{safe_cls}', {{
                 onMatch: function(instance) {{
                     try {{
                         send({{
                             type: 'result',
                             action: 'class_instance',
-                            class: '{cls}',
+                            class: '{safe_cls}',
                             toString: instance.toString(),
                             hashCode: instance.hashCode()
                         }});
                     }} catch(e) {{}}
                 }},
                 onComplete: function() {{
-                    send({{type: 'result', action: 'dump_complete', class: '{cls}'}});
+                    send({{type: 'result', action: 'dump_complete', class: '{safe_cls}'}});
                 }}
             }});
         }});
@@ -909,14 +927,24 @@ async def handle_memory(arguments: dict[str, Any]) -> list[dict[str, Any]]:
 
     elif action == "read_memory":
         addr = arguments.get("address")
-        size = arguments.get("size", 256)
         if not addr:
             return error_result("address required")
+        if not isinstance(addr, str) or not re.fullmatch(r"0x[0-9a-fA-F]+", addr):
+            return error_result("address must be a valid hex pointer (e.g. 0x7f000000)")
+
+        try:
+            size = int(arguments.get("size", 256))
+        except (TypeError, ValueError):
+            return error_result("size must be an integer")
+        if size <= 0 or size > 1_048_576:
+            return error_result("size must be between 1 and 1048576 bytes")
+
+        safe_addr = _js_escape(addr)
         script = f"""
         try {{
-            var ptr = new NativePointer('{addr}');
+            var ptr = new NativePointer('{safe_addr}');
             var data = ptr.readByteArray({size});
-            send({{type: 'result', action: 'read_memory', address: '{addr}', size: {size}}}, data);
+            send({{type: 'result', action: 'read_memory', address: '{safe_addr}', size: {size}}}, data);
         }} catch(e) {{
             send({{type: 'error', message: e.toString()}});
         }}
@@ -926,14 +954,15 @@ async def handle_memory(arguments: dict[str, Any]) -> list[dict[str, Any]]:
         cls = arguments.get("class_name")
         if not cls:
             return error_result("class_name required for heap_search")
+        safe_cls = _js_escape(cls)
         script = f"""
         Java.perform(function() {{
             var instances = [];
-            Java.choose('{cls}', {{
+            Java.choose('{safe_cls}', {{
                 onMatch: function(inst) {{
                     var fields = {{}};
                     try {{
-                        var clsRef = Java.use('{cls}');
+                        var clsRef = Java.use('{safe_cls}');
                         var declaredFields = clsRef.class.getDeclaredFields();
                         for (var i = 0; i < declaredFields.length; i++) {{
                             declaredFields[i].setAccessible(true);
@@ -948,7 +977,7 @@ async def handle_memory(arguments: dict[str, Any]) -> list[dict[str, Any]]:
                     instances.push({{toString: inst.toString(), fields: fields}});
                 }},
                 onComplete: function() {{
-                    send({{type: 'result', action: 'heap_search', class: '{cls}',
+                    send({{type: 'result', action: 'heap_search', class: '{safe_cls}',
                            count: instances.length, instances: instances.slice(0, 50)}});
                 }}
             }});
