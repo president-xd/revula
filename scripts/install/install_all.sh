@@ -10,8 +10,8 @@ set -euo pipefail
 #   ./install_all.sh [OPTIONS]
 #
 # Options:
-#   --minimal       Only install core deps (capstone, lief, pefile, pyelftools, yara)
-#   --no-android    Skip Android-related tools (jadx, apktool, frida, androguard)
+#   --minimal       Only install core deps (mcp, jsonschema, capstone, lief, pefile, pyelftools, yara)
+#   --no-android    Skip Android-related tools (jadx, apktool, frida, androguard, semgrep, quark)
 #   --no-ghidra     Skip Ghidra headless download
 #   --help          Show this help message
 # =============================================================================
@@ -79,8 +79,8 @@ parse_args() {
                 echo "Usage: $0 [--minimal] [--no-android] [--no-ghidra] [--help]"
                 echo ""
                 echo "Options:"
-                echo "  --minimal       Only core Python deps (capstone, lief, pefile, pyelftools, yara-python)"
-                echo "  --no-android    Skip jadx, apktool, androguard, frida"
+                echo "  --minimal       Only core Python deps (mcp, jsonschema, capstone, lief, pefile, pyelftools, yara-python)"
+                echo "  --no-android    Skip jadx, apktool, androguard, frida, semgrep, quark"
                 echo "  --no-ghidra     Skip Ghidra headless download"
                 echo "  --help          Show this message"
                 exit 0
@@ -181,30 +181,48 @@ install_system_deps() {
     # Each key is a logical tool name; value is the package that provides it.
     declare -A apt_pkgs=(
         [gdb]=gdb [binutils]=binutils [binwalk]=binwalk
-        [upx]=upx-ucl [qemu]=qemu-user [radare2]=radare2
+        [upx]=upx-ucl [qemu_user]=qemu-user [qemu_system]=qemu-system [qemu_utils]=qemu-utils
+        [radare2]=radare2
         [lldb]=lldb [rizin]=rizin [tshark]=tshark
         [wabt]=wabt [libfuzzy]=libfuzzy-dev [llvm]=llvm
+        [checksec]=checksec [monodis]=mono-utils [msfvenom]=metasploit-framework
+        [drrun]=dynamorio [adb]=adb
     )
     declare -A dnf_pkgs=(
         [gdb]=gdb [binutils]=binutils [binwalk]=binwalk
-        [upx]=upx [qemu]=qemu-user [radare2]=radare2
+        [upx]=upx [qemu_user]=qemu-user-static [qemu_system]=qemu-system-x86 [qemu_utils]=qemu-img
+        [radare2]=radare2
         [lldb]=lldb [rizin]=rizin [tshark]=wireshark-cli
         [wabt]=wabt [libfuzzy]=ssdeep-devel [llvm]=llvm
+        [checksec]=checksec [monodis]=mono-core [msfvenom]=metasploit
+        [drrun]=dynamorio [adb]=android-tools
     )
     declare -A pacman_pkgs=(
         [gdb]=gdb [binutils]=binutils [binwalk]=binwalk
-        [upx]=upx [qemu]=qemu-user [radare2]=radare2
+        [upx]=upx [qemu_user]=qemu-user [qemu_system]=qemu-full [qemu_utils]=qemu-full
+        [radare2]=radare2
         [lldb]=lldb [rizin]=rizin [tshark]=wireshark-cli
         [wabt]=wabt [libfuzzy]=ssdeep [llvm]=llvm
+        [checksec]=checksec [monodis]=mono [msfvenom]=metasploit
+        [drrun]=dynamorio [adb]=android-tools
     )
     declare -A brew_pkgs=(
         [gdb]=gdb [binutils]=binutils [binwalk]=binwalk
-        [upx]=upx [qemu]=qemu [radare2]=radare2
+        [upx]=upx [qemu_user]=qemu [qemu_system]=qemu [qemu_utils]=qemu
+        [radare2]=radare2
         [lldb]=lldb [rizin]=rizin [tshark]=wireshark
         [wabt]=wabt [libfuzzy]=ssdeep [llvm]=llvm
+        [checksec]=checksec [monodis]=mono [msfvenom]=metasploit
+        [drrun]=dynamorio [adb]=android-platform-tools
     )
 
-    local tools_to_install=(gdb binutils binwalk upx qemu radare2 lldb rizin tshark wabt libfuzzy llvm)
+    local tools_to_install=(
+        gdb binutils binwalk upx
+        qemu_user qemu_system qemu_utils
+        radare2 lldb rizin tshark wabt
+        libfuzzy llvm
+        checksec monodis msfvenom drrun adb
+    )
 
     for tool_key in "${tools_to_install[@]}"; do
         local pkg=""
@@ -295,6 +313,19 @@ install_system_deps() {
         $PIP install --upgrade "flare-capa>=7.0.0" >> "$LOG_FILE" 2>&1 \
             && success "capa (FLARE) installed." \
             || warn "capa install failed — install manually: pip install flare-capa"
+
+        if ! command -v one_gadget &>/dev/null; then
+            if command -v gem &>/dev/null; then
+                info "Installing one_gadget via RubyGems..."
+                gem install --no-document one_gadget >> "$LOG_FILE" 2>&1 \
+                    && success "one_gadget installed." \
+                    || warn "one_gadget install failed — install manually: gem install one_gadget"
+            else
+                warn "one_gadget not installed (Ruby gem 'gem' not found). Install manually: gem install one_gadget"
+            fi
+        else
+            success "one_gadget already available: $(command -v one_gadget)"
+        fi
     fi
 
     success "System dependencies installed."
@@ -315,6 +346,7 @@ install_python_deps() {
         "pyelftools>=0.30"
         "yara-python>=4.3.0"
         "mcp>=1.0.0"
+        "jsonschema>=4.20.0"
     )
 
     info "Installing core Python packages..."
@@ -342,6 +374,8 @@ install_python_deps() {
             "frida>=16.0.0"
             "frida-tools>=12.0.0"
             "androguard>=3.4.0a1"
+            "semgrep"
+            "quark-engine"
         )
     fi
 
@@ -483,13 +517,13 @@ install_remcp() {
     local project_root="${script_dir}/../.."
 
     if [[ -f "${project_root}/pyproject.toml" ]]; then
-        info "Installing revula from local source in editable mode..."
-        $PIP install -e "${project_root}[full]" >> "$LOG_FILE" 2>&1 \
+        info "Installing revula from local source in editable mode (core package)..."
+        $PIP install -e "${project_root}" >> "$LOG_FILE" 2>&1 \
             && success "revula installed (editable mode)." \
             || die "revula installation failed — check $LOG_FILE"
     else
-        info "Installing revula from PyPI..."
-        $PIP install "revula[full]" >> "$LOG_FILE" 2>&1 \
+        info "Installing revula core package from PyPI..."
+        $PIP install "revula" >> "$LOG_FILE" 2>&1 \
             && success "revula installed from PyPI." \
             || die "revula installation failed — check $LOG_FILE"
     fi
