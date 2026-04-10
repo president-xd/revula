@@ -85,6 +85,21 @@ sha256_file() {
     fi
 }
 
+first_matching_file() {
+    local root_dir="$1"
+    shift
+    local name
+    for name in "$@"; do
+        local found
+        found="$(find "$root_dir" -type f -name "$name" 2>/dev/null | head -1)"
+        if [[ -n "$found" ]]; then
+            echo "$found"
+            return 0
+        fi
+    done
+    return 1
+}
+
 sync_legacy_yara_dir() {
     local canonical_dir="$1"
     local legacy_dir="$2"
@@ -276,6 +291,7 @@ install_system_deps() {
         gdb binutils binwalk
         qemu_user qemu_system qemu_utils
         lldb tshark wabt
+        upx radare2 rizin drrun msfvenom
         libfuzzy llvm ruby
         checksec monodis adb apksigner
     )
@@ -407,6 +423,10 @@ EOF
     if [[ "$FLAG_MINIMAL" == false ]]; then
         local user_tools_dir="${REMCP_DIR}/tools"
         local user_bin_dir="${HOME}/.local/bin"
+        local can_use_linux_archives=false
+        if [[ "$OS" == "Linux" ]] && [[ "$ARCH" == "x86_64" ]]; then
+            can_use_linux_archives=true
+        fi
         local added_user_bin=false
         mkdir -p "$user_tools_dir" "$user_bin_dir"
 
@@ -449,8 +469,8 @@ EOF
 
             # pdbutil via LLVM (versioned binary is acceptable)
             if ! command -v llvm-pdbutil &>/dev/null && ! command -v llvm-pdbutil-19 &>/dev/null; then
-                pkg_install "llvm-19" || pkg_install "llvm" \
-                    || warn "pdbutil unavailable — install manually: sudo apt install llvm-19"
+                pkg_install "llvm-19-tools" || pkg_install "llvm-19" || pkg_install "llvm" \
+                    || warn "pdbutil unavailable — install manually: sudo apt install llvm-19-tools"
             fi
 
             # msfvenom via Rapid7 apt repository
@@ -509,84 +529,128 @@ EOF
 
         # rizin + rz-diff (static bundle)
         if ! command -v rizin &>/dev/null || ! command -v rz-diff &>/dev/null; then
-            info "Installing rizin static bundle..."
-            local rizin_dir="${user_tools_dir}/rizin"
-            local rizin_tar
-            rizin_tar="$(mktemp /tmp/rizin_XXXXXX.tar.xz)"
-            if curl -fSL -o "$rizin_tar" "$RIZIN_TAR_URL" 2>>"$LOG_FILE"; then
-                rm -rf "$rizin_dir"
-                mkdir -p "$rizin_dir"
-                tar -xf "$rizin_tar" -C "$rizin_dir" >>"$LOG_FILE" 2>&1
-                ln -sfn "${rizin_dir}/bin/rizin" "${user_bin_dir}/rizin"
-                ln -sfn "${rizin_dir}/bin/rz" "${user_bin_dir}/rz"
-                ln -sfn "${rizin_dir}/bin/rz-diff" "${user_bin_dir}/rz-diff"
-                added_user_bin=true
-                success "rizin/rz-diff installed to ${rizin_dir}"
+            if [[ "$can_use_linux_archives" == true ]]; then
+                info "Installing rizin static bundle..."
+                local rizin_dir="${user_tools_dir}/rizin"
+                local rizin_tar
+                rizin_tar="$(mktemp /tmp/rizin_XXXXXX.tar.xz)"
+                if curl -fSL -o "$rizin_tar" "$RIZIN_TAR_URL" 2>>"$LOG_FILE"; then
+                    rm -rf "$rizin_dir"
+                    mkdir -p "$rizin_dir"
+                    tar -xf "$rizin_tar" -C "$rizin_dir" >>"$LOG_FILE" 2>&1
+                    local rizin_bin rz_bin rz_diff_bin
+                    rizin_bin="$(first_matching_file "$rizin_dir" "rizin" || true)"
+                    rz_bin="$(first_matching_file "$rizin_dir" "rz" || true)"
+                    rz_diff_bin="$(first_matching_file "$rizin_dir" "rz-diff" || true)"
+                    if [[ -n "$rizin_bin" ]] && [[ -n "$rz_bin" ]] && [[ -n "$rz_diff_bin" ]]; then
+                        ln -sfn "$rizin_bin" "${user_bin_dir}/rizin"
+                        ln -sfn "$rz_bin" "${user_bin_dir}/rz"
+                        ln -sfn "$rz_diff_bin" "${user_bin_dir}/rz-diff"
+                        added_user_bin=true
+                        success "rizin/rz-diff installed to ${rizin_dir}"
+                    else
+                        warn "rizin archive extracted but expected binaries were not found."
+                    fi
+                else
+                    warn "rizin download failed — install manually from https://github.com/rizinorg/rizin/releases"
+                fi
+                rm -f "$rizin_tar"
             else
-                warn "rizin download failed — install manually from https://github.com/rizinorg/rizin/releases"
+                warn "Skipping rizin static bundle on ${OS}/${ARCH}; use package manager install."
             fi
-            rm -f "$rizin_tar"
         fi
 
         # drrun (DynamoRIO)
         if ! command -v drrun &>/dev/null; then
-            info "Installing DynamoRIO (drrun)..."
-            local dr_dir="${user_tools_dir}/dynamorio"
-            local dr_tar
-            dr_tar="$(mktemp /tmp/dynamorio_XXXXXX.tar.gz)"
-            if curl -fSL -o "$dr_tar" "$DYNAMORIO_TAR_URL" 2>>"$LOG_FILE"; then
-                rm -rf "$dr_dir"
-                mkdir -p "$dr_dir"
-                tar -xzf "$dr_tar" -C "$dr_dir" --strip-components=1 >>"$LOG_FILE" 2>&1
-                printf '#!/usr/bin/env bash\nexec "%s/bin64/drrun" "$@"\n' "$dr_dir" > "${user_bin_dir}/drrun"
-                chmod +x "${user_bin_dir}/drrun"
-                added_user_bin=true
-                success "drrun installed with wrapper at ${user_bin_dir}/drrun"
+            if [[ "$can_use_linux_archives" == true ]]; then
+                info "Installing DynamoRIO (drrun)..."
+                local dr_dir="${user_tools_dir}/dynamorio"
+                local dr_tar
+                dr_tar="$(mktemp /tmp/dynamorio_XXXXXX.tar.gz)"
+                if curl -fSL -o "$dr_tar" "$DYNAMORIO_TAR_URL" 2>>"$LOG_FILE"; then
+                    rm -rf "$dr_dir"
+                    mkdir -p "$dr_dir"
+                    tar -xzf "$dr_tar" -C "$dr_dir" --strip-components=1 >>"$LOG_FILE" 2>&1
+                    local drrun_bin
+                    drrun_bin="$(first_matching_file "$dr_dir" "drrun" || true)"
+                    if [[ -n "$drrun_bin" ]]; then
+                        printf '#!/usr/bin/env bash\nexec "%s" "$@"\n' "$drrun_bin" > "${user_bin_dir}/drrun"
+                        chmod +x "${user_bin_dir}/drrun"
+                        added_user_bin=true
+                        success "drrun installed with wrapper at ${user_bin_dir}/drrun"
+                    else
+                        warn "DynamoRIO extracted but drrun binary was not found."
+                    fi
+                else
+                    warn "DynamoRIO download failed — install manually from https://dynamorio.org/"
+                fi
+                rm -f "$dr_tar"
             else
-                warn "DynamoRIO download failed — install manually from https://dynamorio.org/"
+                warn "Skipping DynamoRIO archive on ${OS}/${ARCH}; use package manager install."
             fi
-            rm -f "$dr_tar"
         fi
 
         # UPX
         if ! command -v upx &>/dev/null; then
-            info "Installing UPX..."
-            local upx_dir="${user_tools_dir}/upx"
-            local upx_tar
-            upx_tar="$(mktemp /tmp/upx_XXXXXX.tar.xz)"
-            if curl -fSL -o "$upx_tar" "$UPX_TAR_URL" 2>>"$LOG_FILE"; then
-                rm -rf "$upx_dir"
-                mkdir -p "$upx_dir"
-                tar -xf "$upx_tar" -C "$upx_dir" >>"$LOG_FILE" 2>&1
-                ln -sfn "${upx_dir}/upx-${UPX_VERSION}-amd64_linux/upx" "${user_bin_dir}/upx"
-                added_user_bin=true
-                success "upx installed."
+            if [[ "$can_use_linux_archives" == true ]]; then
+                info "Installing UPX..."
+                local upx_dir="${user_tools_dir}/upx"
+                local upx_tar
+                upx_tar="$(mktemp /tmp/upx_XXXXXX.tar.xz)"
+                if curl -fSL -o "$upx_tar" "$UPX_TAR_URL" 2>>"$LOG_FILE"; then
+                    rm -rf "$upx_dir"
+                    mkdir -p "$upx_dir"
+                    tar -xf "$upx_tar" -C "$upx_dir" >>"$LOG_FILE" 2>&1
+                    local upx_bin
+                    upx_bin="$(first_matching_file "$upx_dir" "upx" || true)"
+                    if [[ -n "$upx_bin" ]]; then
+                        ln -sfn "$upx_bin" "${user_bin_dir}/upx"
+                        added_user_bin=true
+                        success "upx installed."
+                    else
+                        warn "UPX extracted but binary was not found."
+                    fi
+                else
+                    warn "UPX download failed — install manually from https://github.com/upx/upx/releases"
+                fi
+                rm -f "$upx_tar"
             else
-                warn "UPX download failed — install manually from https://github.com/upx/upx/releases"
+                warn "Skipping UPX archive on ${OS}/${ARCH}; use package manager install."
             fi
-            rm -f "$upx_tar"
         fi
 
         # RetDec
         if ! command -v retdec-decompiler &>/dev/null; then
-            info "Installing RetDec decompiler..."
-            local retdec_dir="${user_tools_dir}/retdec"
-            local retdec_tar
-            retdec_tar="$(mktemp /tmp/retdec_XXXXXX.tar.xz)"
-            if curl -fSL -o "$retdec_tar" "$RETDEC_TAR_URL" 2>>"$LOG_FILE"; then
-                rm -rf "$retdec_dir"
-                mkdir -p "$retdec_dir"
-                tar -xf "$retdec_tar" -C "$retdec_dir" >>"$LOG_FILE" 2>&1
-                ln -sfn "${retdec_dir}/bin/retdec-decompiler" "${user_bin_dir}/retdec-decompiler"
-                added_user_bin=true
-                success "retdec-decompiler installed."
+            if [[ "$can_use_linux_archives" == true ]]; then
+                info "Installing RetDec decompiler..."
+                local retdec_dir="${user_tools_dir}/retdec"
+                local retdec_tar
+                retdec_tar="$(mktemp /tmp/retdec_XXXXXX.tar.xz)"
+                if curl -fSL -o "$retdec_tar" "$RETDEC_TAR_URL" 2>>"$LOG_FILE"; then
+                    rm -rf "$retdec_dir"
+                    mkdir -p "$retdec_dir"
+                    tar -xf "$retdec_tar" -C "$retdec_dir" >>"$LOG_FILE" 2>&1
+                    local retdec_bin
+                    retdec_bin="$(first_matching_file "$retdec_dir" "retdec-decompiler" || true)"
+                    if [[ -n "$retdec_bin" ]]; then
+                        ln -sfn "$retdec_bin" "${user_bin_dir}/retdec-decompiler"
+                        added_user_bin=true
+                        success "retdec-decompiler installed."
+                    else
+                        warn "RetDec extracted but retdec-decompiler was not found."
+                    fi
+                else
+                    warn "RetDec download failed — install manually from https://github.com/avast/retdec/releases"
+                fi
+                rm -f "$retdec_tar"
             else
-                warn "RetDec download failed — install manually from https://github.com/avast/retdec/releases"
+                warn "Skipping RetDec archive on ${OS}/${ARCH}; use package manager install."
             fi
-            rm -f "$retdec_tar"
         fi
 
         if [[ "$added_user_bin" == true ]]; then
+            export PATH="${user_bin_dir}:$PATH"
+            info "Added ${user_bin_dir} to PATH for current session."
             info "Ensure ~/.local/bin is on PATH: export PATH=\"${user_bin_dir}:\$PATH\""
         fi
     fi
