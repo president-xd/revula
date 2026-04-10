@@ -430,8 +430,8 @@ async def handle_decompile(arguments: dict[str, Any]) -> list[dict[str, Any]]:
             _find_java_cmd()
             _find_ghidra_install()
             ghidra_available = True
-        except RuntimeError:
-            pass
+        except RuntimeError as e:
+            logger.debug("Ghidra auto-detection failed: %s", e)
 
         if ghidra_available:
             backend = "ghidra"
