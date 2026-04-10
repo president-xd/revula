@@ -14,7 +14,7 @@ import shutil
 from pathlib import Path
 from typing import Any
 
-from revula.sandbox import safe_subprocess, validate_binary_path
+from revula.sandbox import safe_subprocess, validate_binary_path, validate_path
 from revula.tools import TOOL_REGISTRY, error_result, text_result
 
 logger = logging.getLogger(__name__)
@@ -298,7 +298,13 @@ async def handle_unpack_upx(arguments: dict[str, Any]) -> list[dict[str, Any]]:
 
     # Determine output
     if output_path:
-        out = Path(output_path)
+        out = validate_path(
+            output_path,
+            allowed_dirs=allowed_dirs,
+            must_exist=False,
+            path_kind="file",
+        )
+        out.parent.mkdir(parents=True, exist_ok=True)
         # Copy to output, unpack in place
         shutil.copy2(file_path, out)
         target = str(out)
@@ -368,6 +374,13 @@ async def handle_dynamic_unpack(arguments: dict[str, Any]) -> list[dict[str, Any
 
     if not output_path:
         output_path = str(file_path.parent / f"{file_path.stem}_unpacked{file_path.suffix}")
+    output_file = validate_path(
+        output_path,
+        allowed_dirs=allowed_dirs,
+        must_exist=False,
+        path_kind="file",
+    )
+    output_file.parent.mkdir(parents=True, exist_ok=True)
 
     # Check if it's UPX — Frida can't handle UPX-packed ELF (loader crash)
     data = file_path.read_bytes()
@@ -466,10 +479,10 @@ async def handle_dynamic_unpack(arguments: dict[str, Any]) -> list[dict[str, Any
             session.detach()
 
         if dump_data:
-            Path(output_path).write_bytes(dump_data)
+            output_file.write_bytes(dump_data)
             return text_result({
                 "status": "dumped",
-                "output": output_path,
+                "output": str(output_file),
                 "size": len(dump_data),
                 "module_info": dump_info,
                 "note": "Raw memory dump — may need PE rebuild (re_pe_rebuild) for PE binaries",
@@ -544,6 +557,13 @@ async def handle_pe_rebuild(arguments: dict[str, Any]) -> list[dict[str, Any]]:
 
     if not output_path:
         output_path = str(dump_path.parent / f"{dump_path.stem}_rebuilt.exe")
+    output_file = validate_path(
+        output_path,
+        allowed_dirs=allowed_dirs,
+        must_exist=False,
+        path_kind="file",
+    )
+    output_file.parent.mkdir(parents=True, exist_ok=True)
 
     try:
         import lief
@@ -605,11 +625,11 @@ async def handle_pe_rebuild(arguments: dict[str, Any]) -> list[dict[str, Any]]:
     config = lief.PE.Builder.config_t()
     builder = lief.PE.Builder(binary, config)
     builder.build()
-    builder.write(output_path)
+    builder.write(str(output_file))
 
     return text_result({
         "status": "rebuilt",
-        "output": output_path,
+        "output": str(output_file),
         "changes": changes,
         "sections": [
             {"name": s.name, "va": f"0x{s.virtual_address:x}", "size": s.virtual_size}
