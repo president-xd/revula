@@ -3,8 +3,8 @@
 Revula — Post-Install Validation Script.
 
 Performs comprehensive validation of the Revula installation:
-  - Python module imports (capstone, lief, yara, mcp, frida, angr)
-  - External tool availability (gdb, r2, jadx, apktool, ghidra)
+  - Python module imports (core + optional integrations)
+  - External tool availability (core RE + optional ecosystems)
   - Config loading
   - Path traversal rejection
   - safe_subprocess safety
@@ -15,6 +15,7 @@ Usage:
 from __future__ import annotations
 
 import importlib
+import importlib.metadata
 import os
 import shutil
 import subprocess
@@ -102,45 +103,66 @@ def check_python_imports(report: ValidationReport) -> None:
     _section("Python Module Imports")
 
     required_modules = [
-        ("capstone",   "capstone",   True),
-        ("lief",       "lief",       True),
-        ("pefile",     "pefile",     True),
-        ("pyelftools", "elftools",   True),
-        ("yara",       "yara",       True),
-        ("mcp",        "mcp",        True),
+        ("capstone",   "capstone",     True),
+        ("lief",       "lief",         True),
+        ("pefile",     "pefile",       True),
+        ("pyelftools", "elftools",     True),
+        ("yara",       "yara",         True),
+        ("mcp",        "mcp",          True),
+        ("jsonschema", "jsonschema",   True),
     ]
     optional_modules = [
-        ("frida",       "frida",       False),
-        ("angr",        "angr",        False),
-        ("r2pipe",      "r2pipe",      False),
-        ("scapy",       "scapy.all",   False),
-        ("androguard",  "androguard",  False),
+        ("frida",       "frida",          False),
+        ("angr",        "angr",           False),
+        ("r2pipe",      "r2pipe",         False),
+        ("scapy",       "scapy.all",      False),
+        ("androguard",  "androguard",     False),
+        ("tlsh",        "tlsh",           False),
+        ("ssdeep",      "ssdeep|ppdeep",  False),
+        ("uncompyle6",  "uncompyle6",     False),
+        ("triton",      "triton",         False),
+        ("quark",       "quark",          False),
+        ("semgrep",     "semgrep",        False),
     ]
 
     for display_name, import_name, required in required_modules + optional_modules:
-        try:
-            mod = importlib.import_module(import_name)
-            version = getattr(mod, "__version__", getattr(mod, "VERSION", "?"))
+        imported_name = None
+        mod = None
+        for candidate in import_name.split("|"):
+            try:
+                mod = importlib.import_module(candidate)
+                imported_name = candidate
+                break
+            except Exception:
+                continue
+
+        if imported_name is not None and mod is not None:
+            try:
+                version = importlib.metadata.version(imported_name.split(".", 1)[0])
+            except Exception:
+                version = getattr(mod, "__version__", getattr(mod, "VERSION", "?"))
             result = CheckResult(
                 name=f"import {display_name}",
                 category="python",
                 passed=True,
-                detail=f"v{version}",
+                detail=f"{imported_name} v{version}",
                 required=required,
             )
-            print(f"  {_pass(display_name):<40} v{version}")
-        except Exception as e:
-            result = CheckResult(
-                name=f"import {display_name}",
-                category="python",
-                passed=False,
-                detail=str(e),
-                required=required,
-            )
-            if required:
-                print(f"  {_fail(display_name):<40} {e}")
-            else:
-                print(f"  {_skip(display_name):<40} not installed (optional)")
+            print(f"  {_pass(display_name):<40} {imported_name} v{version}")
+            report.add(result)
+            continue
+
+        result = CheckResult(
+            name=f"import {display_name}",
+            category="python",
+            passed=False,
+            detail=f"Could not import any of: {import_name}",
+            required=required,
+        )
+        if required:
+            print(f"  {_fail(display_name):<40} Could not import any of: {import_name}")
+        else:
+            print(f"  {_skip(display_name):<40} not installed (optional)")
         report.add(result)
 
 
@@ -157,6 +179,8 @@ def check_external_tools(report: ValidationReport) -> None:
         ("radare2",          ["r2", "radare2"],             False),
         ("objdump",          ["objdump"],                   True),
         ("strings",          ["strings"],                   True),
+        ("checksec",         ["checksec"],                  False),
+        ("adb",              ["adb"],                       False),
         ("jadx",             ["jadx"],                      False),
         ("apktool",          ["apktool"],                   False),
         ("ghidra headless",  ["analyzeHeadless"],           False),
@@ -165,6 +189,18 @@ def check_external_tools(report: ValidationReport) -> None:
         ("capa",             ["capa"],                      False),
         ("rizin",            ["rizin", "rz"],               False),
         ("lldb",             ["lldb"],                      False),
+        ("qemu user",        ["qemu-x86_64", "qemu-arm"],   False),
+        ("qemu system",      ["qemu-system-x86_64"],        False),
+        ("qemu-img",         ["qemu-img"],                  False),
+        ("tshark/capinfos",  ["tshark", "capinfos"],        False),
+        ("drrun",            ["drrun"],                     False),
+        ("monodis",          ["monodis"],                   False),
+        ("msfvenom",         ["msfvenom"],                  False),
+        ("one_gadget",       ["one_gadget"],                False),
+        ("semgrep",          ["semgrep"],                   False),
+        ("quark",            ["quark"],                     False),
+        ("wasm2wat",         ["wasm2wat"],                  False),
+        ("pdbutil",          ["llvm-pdbutil", "llvm-pdbutil-19", "llvm-pdbutil-18", "llvm-pdbutil-17"], False),
     ]
 
     for display_name, candidates, required in tools:
