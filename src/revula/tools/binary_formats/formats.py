@@ -14,7 +14,7 @@ import zipfile
 from pathlib import Path
 from typing import Any
 
-from revula.sandbox import safe_subprocess, validate_binary_path
+from revula.sandbox import safe_subprocess, validate_binary_path, validate_path
 from revula.tools import TOOL_REGISTRY, error_result, text_result
 
 logger = logging.getLogger(__name__)
@@ -88,6 +88,7 @@ def _parse_dex_header(data: bytes) -> dict[str, Any]:
         "required": ["apk_path"],
     },
     category="binary_formats",
+    requires_tools=["aapt"],
 )
 async def handle_apk_analyze(arguments: dict[str, Any]) -> list[dict[str, Any]]:
     """Analyze APK."""
@@ -158,7 +159,12 @@ async def handle_apk_analyze(arguments: dict[str, Any]) -> list[dict[str, Any]]:
 
             # Extract DEX if requested
             if extract_dex and output_dir:
-                out = Path(output_dir)
+                out = validate_path(
+                    output_dir,
+                    allowed_dirs=allowed_dirs,
+                    must_exist=False,
+                    path_kind="dir",
+                )
                 out.mkdir(parents=True, exist_ok=True)
                 extracted: list[str] = []
                 for dex_name in dex_files:
@@ -236,6 +242,7 @@ def _parse_aapt_output(output: str) -> dict[str, Any]:
         "required": ["assembly_path"],
     },
     category="binary_formats",
+    requires_tools=["monodis"],
 )
 async def handle_dotnet_analyze(arguments: dict[str, Any]) -> list[dict[str, Any]]:
     """Analyze .NET assembly."""
@@ -381,6 +388,7 @@ JAVA_ACCESS_FLAGS = {
         "required": ["class_path"],
     },
     category="binary_formats",
+    requires_tools=["java"],
 )
 async def handle_java_analyze(arguments: dict[str, Any]) -> list[dict[str, Any]]:
     """Analyze Java class file."""
@@ -510,6 +518,7 @@ def _read_leb128(data: bytes, offset: int) -> tuple[int, int]:
         "required": ["wasm_path"],
     },
     category="binary_formats",
+    requires_tools=["wasm2wat"],
 )
 async def handle_wasm_analyze(arguments: dict[str, Any]) -> list[dict[str, Any]]:
     """Analyze WASM binary."""
