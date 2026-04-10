@@ -172,17 +172,30 @@ async def handle_coverage_collect(arguments: dict[str, Any]) -> list[dict[str, A
 
     if not output_path:
         output_path = str(file_path.parent / f"{file_path.stem}.cov")
+    validated_output = validate_path(
+        output_path,
+        allowed_dirs=allowed_dirs,
+        must_exist=False,
+        path_kind="file",
+    )
+    validated_output.parent.mkdir(parents=True, exist_ok=True)
+    output_path = str(validated_output)
 
     if backend == "drcov":
-        return await _collect_drcov(file_path, args, output_path, timeout, config)
+        return await _collect_drcov(file_path, args, output_path, timeout, config, allowed_dirs)
     elif backend == "frida":
-        return await _collect_frida(file_path, args, output_path, timeout)
+        return await _collect_frida(file_path, args, output_path, timeout, allowed_dirs)
     else:
         return error_result(f"Unknown backend: {backend}")
 
 
 async def _collect_drcov(
-    binary: Path, args: list[str], output_path: str, timeout: int, config: Any
+    binary: Path,
+    args: list[str],
+    output_path: str,
+    timeout: int,
+    config: Any,
+    allowed_dirs: list[str] | None = None,
 ) -> list[dict[str, Any]]:
     """Collect coverage with DynamoRIO drcov."""
     drrun = "drrun"
@@ -192,11 +205,20 @@ async def _collect_drcov(
         except ToolNotAvailableError as e:
             return error_result(str(e))
 
+    out_path = validate_path(
+        output_path,
+        allowed_dirs=allowed_dirs,
+        must_exist=False,
+        path_kind="file",
+    )
+    out_dir = out_path.parent
+    out_dir.mkdir(parents=True, exist_ok=True)
+
     cmd = [
         drrun,
         "-t", "drcov",
         "-dump_text",
-        "-logdir", str(Path(output_path).parent),
+        "-logdir", str(out_dir),
         "--",
         str(binary),
         *args,
@@ -208,17 +230,16 @@ async def _collect_drcov(
         return error_result(f"DynamoRIO failed: {result.stderr}")
 
     # Find output file
-    out_dir = Path(output_path).parent
     cov_files = sorted(out_dir.glob("*.log"), key=lambda f: f.stat().st_mtime, reverse=True)
 
     if cov_files:
         cov_data = cov_files[0].read_bytes()
         parsed = parse_drcov(cov_data)
         # Copy to desired path
-        Path(output_path).write_bytes(cov_data)
+        out_path.write_bytes(cov_data)
         return text_result({
             "backend": "drcov",
-            "output": output_path,
+            "output": str(out_path),
             "summary": {
                 "modules": len(parsed["modules"]),
                 "blocks": parsed["total_blocks"],
@@ -229,7 +250,11 @@ async def _collect_drcov(
 
 
 async def _collect_frida(
-    binary: Path, args: list[str], output_path: str, timeout: int
+    binary: Path,
+    args: list[str],
+    output_path: str,
+    timeout: int,
+    allowed_dirs: list[str] | None = None,
 ) -> list[dict[str, Any]]:
     """Collect coverage with Frida Stalker."""
     try:
@@ -293,11 +318,18 @@ async def _collect_frida(
 
     # Save coverage data
     result_data = {"modules": modules, "coverage": coverage}
-    Path(output_path).write_text(json.dumps(result_data, indent=2))
+    out_path = validate_path(
+        output_path,
+        allowed_dirs=allowed_dirs,
+        must_exist=False,
+        path_kind="file",
+    )
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps(result_data, indent=2))
 
     return text_result({
         "backend": "frida",
-        "output": output_path,
+        "output": str(out_path),
         "summary": {
             "modules": len(modules),
             "unique_blocks": len(coverage),
@@ -331,7 +363,13 @@ async def _collect_frida(
 )
 async def handle_coverage_analyze(arguments: dict[str, Any]) -> list[dict[str, Any]]:
     """Analyze coverage data."""
-    cov_path = validate_path(arguments["coverage_path"])
+    config = arguments.get("__config__")
+    allowed_dirs = config.security.allowed_dirs if config else None
+    cov_path = validate_path(
+        arguments["coverage_path"],
+        allowed_dirs=allowed_dirs,
+        path_kind="file",
+    )
     fmt = arguments.get("format", "auto")
     module_filter = arguments.get("module_filter")
 
