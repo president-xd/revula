@@ -201,7 +201,11 @@ echo ""
 
 echo -e "${BOLD}YARA Rules${NC}"
 echo "──────────────────────────────────────────────────────"
-yara_dir="${HOME}/.revula/yara-rules"
+yara_dir="${HOME}/.revula/yara_rules"
+legacy_yara_dir="${HOME}/.revula/yara-rules"
+if [[ ! -d "$yara_dir" ]] && [[ -d "$legacy_yara_dir" ]]; then
+    yara_dir="$legacy_yara_dir"
+fi
 if [[ -d "$yara_dir" ]]; then
     count="$(find "$yara_dir" -name '*.yar' -o -name '*.yara' 2>/dev/null | wc -l)"
     if [[ "$count" -gt 0 ]]; then
@@ -210,7 +214,7 @@ if [[ -d "$yara_dir" ]]; then
         skip "YARA rules directory exists but no .yar files found"
     fi
 else
-    skip "YARA rules directory not found ($yara_dir)"
+    skip "YARA rules directory not found (${HOME}/.revula/yara_rules or ${HOME}/.revula/yara-rules)"
 fi
 echo ""
 
