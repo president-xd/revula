@@ -538,9 +538,10 @@ EOF
                 rm -rf "$dr_dir"
                 mkdir -p "$dr_dir"
                 tar -xzf "$dr_tar" -C "$dr_dir" --strip-components=1 >>"$LOG_FILE" 2>&1
-                ln -sfn "${dr_dir}/bin64/drrun" "${user_bin_dir}/drrun"
+                printf '#!/usr/bin/env bash\nexec "%s/bin64/drrun" "$@"\n' "$dr_dir" > "${user_bin_dir}/drrun"
+                chmod +x "${user_bin_dir}/drrun"
                 added_user_bin=true
-                success "drrun installed to ${dr_dir}/bin64/drrun"
+                success "drrun installed with wrapper at ${user_bin_dir}/drrun"
             else
                 warn "DynamoRIO download failed — install manually from https://dynamorio.org/"
             fi
@@ -676,6 +677,7 @@ install_python_deps() {
         "scapy>=2.5.0"
         "python-tlsh>=4.5.0"
         "ppdeep>=1.1"
+        "unicorn>=2.0.0"
         "uncompyle6>=3.9.0"
     )
 
