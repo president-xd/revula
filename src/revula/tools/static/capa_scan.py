@@ -11,7 +11,7 @@ import json
 import logging
 from typing import Any
 
-from revula.sandbox import safe_subprocess, validate_binary_path
+from revula.sandbox import safe_subprocess, validate_binary_path, validate_path
 from revula.tools import TOOL_REGISTRY, error_result, text_result
 
 logger = logging.getLogger(__name__)
@@ -70,7 +70,8 @@ async def handle_capa(arguments: dict[str, Any]) -> list[dict[str, Any]]:
     if fmt != "auto":
         cmd.extend(["-f", fmt])
     if rules_path:
-        cmd.extend(["-r", rules_path])
+        rules_dir = validate_path(rules_path, allowed_dirs=allowed_dirs, path_kind="dir")
+        cmd.extend(["-r", str(rules_dir)])
     else:
         # Auto-detect rules path — pip-installed capa often lacks embedded rules
         from pathlib import Path as _Path
