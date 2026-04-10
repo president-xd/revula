@@ -35,6 +35,7 @@ logger = logging.getLogger(__name__)
         "Supports custom rules, OWASP Mobile rulesets, and pattern matching."
     ),
     category="android",
+    requires_tools=["semgrep"],
     input_schema={
         "type": "object",
         "required": ["target_dir"],
