@@ -109,8 +109,8 @@ def find_remcp_command() -> dict:
                 "command": python_path,
                 "args": ["-m", "revula.server"],
             }
-    except Exception:
-        pass
+    except Exception as e:
+        warn(f"Python module probe failed: {e}")
 
     warn("Could not auto-detect revula. Using default 'revula' command.")
     return {
