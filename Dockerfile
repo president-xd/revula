@@ -59,7 +59,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     binutils-multiarch \
     radare2 \
     rizin \
-    objdump \
+    qemu-user \
+    qemu-system \
+    qemu-utils \
     # Android tools
     adb \
     aapt \
@@ -158,6 +160,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     binutils-multiarch \
     radare2 \
     rizin \
+    qemu-user \
+    qemu-system \
+    qemu-utils \
     # Android tools
     adb \
     aapt \
@@ -213,10 +218,7 @@ RUN useradd -m -u 1000 -s /bin/bash revula && \
     chown -R revula:revula /home/revula/.revula
 
 # Set up volumes for persistent data
-VOLUME ["/home/revula/.revula", "/workspace"]
-
-# Expose SSE port
-EXPOSE 8000
+VOLUME ["/root/.revula", "/workspace"]
 
 # Environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -225,10 +227,6 @@ ENV PYTHONUNBUFFERED=1 \
     REVULA_DEFAULT_TIMEOUT=300 \
     GHIDRA_PATH=/opt/ghidra \
     GHIDRA_HEADLESS=/opt/ghidra/support/analyzeHeadless
-
-# Health check for SSE mode
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD timeout 2 bash -c '</dev/tcp/localhost/8000' || exit 1
 
 # Default: Run as root for access to debugging tools
 WORKDIR /workspace
