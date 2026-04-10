@@ -52,9 +52,6 @@ SESSION_MANAGER = SessionManager()
 RESULT_CACHE = ResultCache()
 RATE_LIMITER = RateLimiter(RateLimitConfig())
 
-# Tool-name prefixes that mutate state and should NOT be cached
-_MUTATING_PREFIXES = ("re_patch_", "re_frida_", "re_gdb_", "re_lldb_", "re_adb_", "re_qemu_")
-
 # ---------------------------------------------------------------------------
 # Import all tool modules to trigger registration
 # ---------------------------------------------------------------------------
@@ -146,6 +143,17 @@ def _safe_import(module_name: str) -> None:
         logger.warning("Error loading tool module %s: %s", module_name, e)
 
 
+def _is_cacheable_tool(name: str) -> bool:
+    """
+    Determine whether a tool is safe to cache.
+
+    Fail-closed by default: tools are cacheable only when explicitly opted in
+    at registration (`cacheable=True`).
+    """
+    tool = TOOL_REGISTRY.get(name)
+    return bool(tool and tool.cacheable)
+
+
 # ---------------------------------------------------------------------------
 # MCP Handlers
 # ---------------------------------------------------------------------------
@@ -181,8 +189,8 @@ async def call_tool(name: str, arguments: dict[str, Any] | None) -> list[TextCon
             "message": f"Rate limit exceeded for tool '{name}'. Try again shortly.",
         }))]
 
-    # Check cache for read-only tools (skip tools that mutate state)
-    cacheable = not any(name.startswith(p) for p in _MUTATING_PREFIXES)
+    # Check cache only for tools that explicitly opt in.
+    cacheable = _is_cacheable_tool(name)
     cache_key = ""
 
     if cacheable:

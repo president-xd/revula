@@ -6,11 +6,15 @@ Tests: ResultCache (LRU + TTL), RateLimiter, _TokenBucket.
 
 from __future__ import annotations
 
+import json
 from typing import Any
 from unittest.mock import patch
 
+import pytest
+
 from revula.cache import ResultCache
 from revula.rate_limit import RateLimitConfig, RateLimiter, _TokenBucket
+from revula.tools import ToolRegistry, text_result
 
 # ---------------------------------------------------------------------------
 # ResultCache Tests
@@ -169,6 +173,105 @@ class TestResultCacheMakeKey:
         assert key.startswith("my_tool:")
         # The hash portion is 16 hex chars
         assert len(key.split(":")[1]) == 16
+
+
+class TestServerCachePolicy:
+    """Server-level cache policy: explicit opt-in only."""
+
+    def test_is_cacheable_tool_requires_explicit_opt_in(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        import revula.server as server
+
+        registry = ToolRegistry()
+
+        @registry.register(
+            name="cache_opt_out",
+            description="default non-cacheable",
+            input_schema={"type": "object", "properties": {}, "additionalProperties": False},
+        )
+        async def _non_cacheable_handler(args: dict[str, Any]) -> list[dict[str, Any]]:
+            return text_result({"ok": True})
+
+        @registry.register(
+            name="cache_opt_in",
+            description="explicit cacheable",
+            input_schema={"type": "object", "properties": {}, "additionalProperties": False},
+            cacheable=True,
+        )
+        async def _cacheable_handler(args: dict[str, Any]) -> list[dict[str, Any]]:
+            return text_result({"ok": True})
+
+        monkeypatch.setattr(server, "TOOL_REGISTRY", registry)
+
+        assert server._is_cacheable_tool("cache_opt_out") is False
+        assert server._is_cacheable_tool("cache_opt_in") is True
+
+    @pytest.mark.asyncio
+    async def test_call_tool_caches_only_opt_in(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        import revula.server as server
+
+        registry = ToolRegistry()
+        calls: dict[str, int] = {"cache": 0, "no_cache": 0}
+
+        schema = {
+            "type": "object",
+            "properties": {"value": {"type": "integer"}},
+            "required": ["value"],
+            "additionalProperties": False,
+        }
+
+        @registry.register(
+            name="cache_opt_in",
+            description="cacheable handler",
+            input_schema=schema,
+            cacheable=True,
+        )
+        async def _cacheable_handler(args: dict[str, Any]) -> list[dict[str, Any]]:
+            calls["cache"] += 1
+            return text_result({"count": calls["cache"]})
+
+        @registry.register(
+            name="cache_opt_out",
+            description="non-cacheable handler",
+            input_schema=schema,
+            cacheable=False,
+        )
+        async def _non_cacheable_handler(args: dict[str, Any]) -> list[dict[str, Any]]:
+            calls["no_cache"] += 1
+            return text_result({"count": calls["no_cache"]})
+
+        class _AllowAllRateLimiter:
+            def check(self, _tool_name: str) -> bool:
+                return True
+
+        monkeypatch.setattr(server, "TOOL_REGISTRY", registry)
+        monkeypatch.setattr(server, "RESULT_CACHE", ResultCache())
+        monkeypatch.setattr(server, "RATE_LIMITER", _AllowAllRateLimiter())
+        monkeypatch.setattr(server, "SESSION_MANAGER", object())
+        monkeypatch.setattr(server, "get_config", lambda: object())
+
+        first_cached = await server.call_tool("cache_opt_in", {"value": 1})
+        second_cached = await server.call_tool("cache_opt_in", {"value": 1})
+        first_cached_payload = json.loads(first_cached[0].text)
+        second_cached_payload = json.loads(second_cached[0].text)
+
+        assert first_cached_payload["count"] == 1
+        assert second_cached_payload["count"] == 1
+        assert calls["cache"] == 1
+
+        first_non_cached = await server.call_tool("cache_opt_out", {"value": 1})
+        second_non_cached = await server.call_tool("cache_opt_out", {"value": 1})
+        first_non_cached_payload = json.loads(first_non_cached[0].text)
+        second_non_cached_payload = json.loads(second_non_cached[0].text)
+
+        assert first_non_cached_payload["count"] == 1
+        assert second_non_cached_payload["count"] == 2
+        assert calls["no_cache"] == 2
 
 
 # ---------------------------------------------------------------------------

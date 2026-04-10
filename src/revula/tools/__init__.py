@@ -43,6 +43,7 @@ class ToolDefinition:
     requires_tools: list[str] = field(default_factory=list)
     requires_modules: list[str] = field(default_factory=list)
     streaming: bool = False
+    cacheable: bool = False
 
     def to_mcp_tool(self) -> dict[str, Any]:
         """Convert to MCP Tool format."""
@@ -74,6 +75,7 @@ class ToolRegistry:
         requires_tools: list[str] | None = None,
         requires_modules: list[str] | None = None,
         streaming: bool = False,
+        cacheable: bool = False,
     ) -> Callable[[ToolHandler], ToolHandler]:
         """
         Decorator to register a tool handler.
@@ -106,6 +108,7 @@ class ToolRegistry:
                 requires_tools=requires_tools or [],
                 requires_modules=requires_modules or [],
                 streaming=streaming,
+                cacheable=cacheable,
             )
 
             logger.debug("Registered tool: %s (category=%s)", name, category)
