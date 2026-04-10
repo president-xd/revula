@@ -141,17 +141,17 @@ else
     WARNINGS=$((WARNINGS + 1))
 fi
 
-if grep -q "revula-sse:" docker-compose.yml; then
-    echo -e "${GREEN}[PASS]${NC} SSE service defined"
-else
-    echo -e "${RED}[FAIL]${NC} SSE service not found"
-    ERRORS=$((ERRORS + 1))
-fi
-
 if grep -q "revula-stdio:" docker-compose.yml; then
     echo -e "${GREEN}[PASS]${NC} stdio service defined"
 else
-    echo -e "${YELLOW}[WARN]${NC} stdio service not defined"
+    echo -e "${RED}[FAIL]${NC} stdio service not found"
+    ERRORS=$((ERRORS + 1))
+fi
+
+if grep -q "revula-dev:" docker-compose.yml; then
+    echo -e "${GREEN}[PASS]${NC} dev service defined"
+else
+    echo -e "${YELLOW}[WARN]${NC} dev service not defined"
     WARNINGS=$((WARNINGS + 1))
 fi
 
@@ -247,7 +247,7 @@ if [ $ERRORS -eq 0 ] && [ $WARNINGS -eq 0 ]; then
     echo "Next steps:"
     echo "  1. Build the image: docker build -t revula:latest ."
     echo "  2. Run tests: ./scripts/docker/test.sh"
-    echo "  3. Start using: docker-compose --profile sse up -d"
+    echo "  3. Start using: docker compose --profile stdio run --rm revula-stdio"
     exit 0
 elif [ $ERRORS -eq 0 ]; then
     echo -e "${YELLOW}[WARN] Validation passed with $WARNINGS warning(s)${NC}"
