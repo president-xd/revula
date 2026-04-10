@@ -144,6 +144,7 @@ async def handle_semgrep(arguments: dict[str, Any]) -> list[dict[str, Any]]:
         "behaviors, generates threat level scores, and maps to MITRE ATT&CK."
     ),
     category="android",
+    requires_tools=["quark"],
     input_schema={
         "type": "object",
         "required": ["apk_path"],
@@ -191,8 +192,8 @@ async def handle_quark(arguments: dict[str, Any]) -> list[dict[str, Any]]:
             "behaviors": filtered[:100],
         })
 
-    except ImportError:
-        pass
+    except ImportError as e:
+        logger.debug("Quark Python API unavailable, falling back to CLI: %s", e)
 
     # Fall back to CLI
     quark = shutil.which("quark")
