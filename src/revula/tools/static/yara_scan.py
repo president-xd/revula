@@ -14,12 +14,22 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from revula.sandbox import validate_binary_path
+from revula.sandbox import validate_binary_path, validate_path
 from revula.tools import TOOL_REGISTRY, error_result, text_result
 
 logger = logging.getLogger(__name__)
 
 COMMUNITY_RULES_DIR = Path.home() / ".revula" / "yara_rules"
+LEGACY_COMMUNITY_RULES_DIR = Path.home() / ".revula" / "yara-rules"
+
+
+def _resolve_community_rules_dir() -> Path:
+    """Resolve installed community rules directory (canonical, then legacy)."""
+    if COMMUNITY_RULES_DIR.exists():
+        return COMMUNITY_RULES_DIR
+    if LEGACY_COMMUNITY_RULES_DIR.exists():
+        return LEGACY_COMMUNITY_RULES_DIR
+    return COMMUNITY_RULES_DIR
 
 
 # ---------------------------------------------------------------------------
@@ -31,6 +41,7 @@ def _compile_rules(
     rules_path: str | None = None,
     rules_inline: str | None = None,
     include_community: bool = False,
+    allowed_dirs: list[str] | None = None,
 ) -> Any:
     """Compile YARA rules from various sources."""
     import yara
@@ -39,7 +50,7 @@ def _compile_rules(
         return yara.compile(source=rules_inline)
 
     if rules_path:
-        path = Path(rules_path)
+        path = validate_path(rules_path, allowed_dirs=allowed_dirs)
         if path.is_file():
             return yara.compile(filepath=str(path))
         elif path.is_dir():
@@ -53,16 +64,24 @@ def _compile_rules(
             return yara.compile(filepaths=filepaths)
 
     if include_community:
-        if COMMUNITY_RULES_DIR.exists():
+        community_dir = _resolve_community_rules_dir()
+        if community_dir.exists():
+            if allowed_dirs:
+                community_dir = validate_path(
+                    str(community_dir),
+                    allowed_dirs=allowed_dirs,
+                    path_kind="dir",
+                )
             filepaths = {}
-            for yar_file in sorted(COMMUNITY_RULES_DIR.glob("**/*.yar")):
+            for yar_file in sorted(community_dir.glob("**/*.yar")):
                 filepaths[yar_file.stem] = str(yar_file)
-            for yar_file in sorted(COMMUNITY_RULES_DIR.glob("**/*.yara")):
+            for yar_file in sorted(community_dir.glob("**/*.yara")):
                 filepaths[yar_file.stem] = str(yar_file)
             if filepaths:
                 return yara.compile(filepaths=filepaths)
         raise ValueError(
-            f"Community rules not found at {COMMUNITY_RULES_DIR}. "
+            f"Community rules not found at {COMMUNITY_RULES_DIR} "
+            f"(legacy: {LEGACY_COMMUNITY_RULES_DIR}). "
             "Download YARA rulesets and place them there."
         )
 
@@ -158,6 +177,14 @@ async def handle_yara_scan(arguments: dict[str, Any]) -> list[dict[str, Any]]:
     include_community = arguments.get("include_community_rules", False)
     context_bytes = arguments.get("context_bytes", 32)
     timeout = arguments.get("timeout", 60)
+    config = arguments.get("__config__")
+    allowed_dirs = config.security.allowed_dirs if config else None
+    resolved_rules_path: str | None = None
+
+    if rules_path:
+        rules_file = validate_path(rules_path, allowed_dirs=allowed_dirs)
+        resolved_rules_path = str(rules_file)
+        rules_path = resolved_rules_path
 
     if not rules_path and not rules_inline and not include_community:
         return error_result(
@@ -172,8 +199,6 @@ async def handle_yara_scan(arguments: dict[str, Any]) -> list[dict[str, Any]]:
             return error_result(f"Invalid hex string: {e}")
         source = "hex_bytes"
     elif binary_path:
-        config = arguments.get("__config__")
-        allowed_dirs = config.security.allowed_dirs if config else None
         file_path = validate_binary_path(binary_path, allowed_dirs=allowed_dirs)
         data = file_path.read_bytes()
         source = str(file_path)
@@ -182,7 +207,12 @@ async def handle_yara_scan(arguments: dict[str, Any]) -> list[dict[str, Any]]:
 
     # Compile rules
     try:
-        rules = _compile_rules(rules_path, rules_inline, include_community)
+        rules = _compile_rules(
+            rules_path=rules_path,
+            rules_inline=rules_inline,
+            include_community=include_community,
+            allowed_dirs=allowed_dirs,
+        )
     except Exception as e:
         return error_result(f"YARA rule compilation failed: {e}")
 
@@ -235,7 +265,11 @@ async def handle_yara_scan(arguments: dict[str, Any]) -> list[dict[str, Any]]:
     return text_result({
         "source": source,
         "data_size": len(data),
-        "rules_source": "inline" if rules_inline else rules_path or "community",
+        "rules_source": (
+            "inline"
+            if rules_inline
+            else resolved_rules_path or str(_resolve_community_rules_dir())
+        ),
         "match_count": len(results),
         "matches": results,
     })
