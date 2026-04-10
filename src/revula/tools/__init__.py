@@ -17,6 +17,9 @@ from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field
 from typing import Any
 
+from jsonschema import Draft202012Validator
+from jsonschema.exceptions import SchemaError, ValidationError
+
 logger = logging.getLogger(__name__)
 
 
@@ -141,6 +144,12 @@ class ToolRegistry:
         if tool is None:
             return [_error_content(f"Unknown tool: {name}")]
 
+        # Validate user-provided arguments against tool JSON schema.
+        # Internal runtime-injected args (e.g., __config__) are excluded.
+        validation_error = self._validate_arguments(tool, arguments)
+        if validation_error is not None:
+            return [_error_content(validation_error)]
+
         # Check module availability
         for mod in tool.requires_modules:
             try:
@@ -181,6 +190,49 @@ class ToolRegistry:
         except Exception as e:
             logger.exception("Error executing tool %s", name)
             return [_error_content(f"Tool '{name}' failed: {type(e).__name__}: {e}")]
+
+    def _validate_arguments(
+        self,
+        tool: ToolDefinition,
+        arguments: dict[str, Any],
+    ) -> str | None:
+        """Validate tool call arguments and return an error message on failure."""
+        user_arguments = {
+            key: value
+            for key, value in arguments.items()
+            if not (isinstance(key, str) and key.startswith("__"))
+        }
+
+        try:
+            Draft202012Validator.check_schema(tool.input_schema)
+            validator = Draft202012Validator(tool.input_schema)
+            errors = sorted(
+                validator.iter_errors(user_arguments),
+                key=lambda err: list(err.path),
+            )
+            if not errors:
+                return None
+
+            err = errors[0]
+            location = "$"
+            if err.absolute_path:
+                location += "." + ".".join(str(part) for part in err.absolute_path)
+
+            return (
+                f"Invalid arguments for tool '{tool.name}' at {location}: {err.message}"
+            )
+        except SchemaError as err:
+            logger.error("Invalid input_schema for tool %s: %s", tool.name, err)
+            return (
+                f"Tool '{tool.name}' has an invalid input schema: {err.message}"
+            )
+        except ValidationError as err:
+            location = "$"
+            if err.absolute_path:
+                location += "." + ".".join(str(part) for part in err.absolute_path)
+            return (
+                f"Invalid arguments for tool '{tool.name}' at {location}: {err.message}"
+            )
 
 
 def _error_content(message: str) -> dict[str, Any]:
