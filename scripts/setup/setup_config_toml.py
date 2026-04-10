@@ -45,13 +45,17 @@ CONFIG_FILE = CONFIG_DIR / "config.toml"
 # Known tools to offer path configuration
 TOOL_ENTRIES: list[tuple[str, str, list[str]]] = [
     # (config_key, display_name, binary_candidates)
-    ("ghidra.headless_path", "Ghidra analyzeHeadless", ["analyzeHeadless"]),
+    ("ghidra_headless.path", "Ghidra analyzeHeadless", ["analyzeHeadless"]),
     ("radare2.path",         "Radare2 (r2)",           ["r2", "radare2"]),
     ("rizin.path",           "Rizin",                   ["rizin", "rz"]),
     ("gdb.path",             "GDB",                     ["gdb"]),
     ("lldb.path",            "LLDB",                    ["lldb"]),
+    ("adb.path",             "ADB",                     ["adb"]),
+    ("java.path",            "Java/JDK",                ["java", "javap"]),
     ("jadx.path",            "JADX",                    ["jadx"]),
     ("apktool.path",         "Apktool",                 ["apktool"]),
+    ("semgrep.path",         "Semgrep",                 ["semgrep"]),
+    ("quark.path",           "Quark",                   ["quark"]),
     ("capa.path",            "capa",                    ["capa"]),
     ("floss.path",           "FLOSS",                   ["floss"]),
     ("upx.path",             "UPX",                     ["upx"]),
