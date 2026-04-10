@@ -297,6 +297,8 @@ PYTHON_MODULES: dict[str, str] = {
     "r2pipe": "pip install r2pipe",
     "frida": "pip install frida frida-tools",
     "angr": "pip install angr",
+    "unicorn": "pip install unicorn",
+    "lldb": "Install matching python3-lldb package for your Python version and ensure it is on PYTHONPATH",
     "triton": "Build Triton from source: https://github.com/JonathanSalwan/Triton (PyPI triton is unrelated)",
     "scapy": "pip install scapy",
     "tlsh": "pip install python-tlsh",
