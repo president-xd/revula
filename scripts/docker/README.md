@@ -1,119 +1,49 @@
 # Docker Scripts
 
-This directory contains automation scripts for Docker build, test, and validation.
+Automation scripts for Docker build/test and Docker config validation.
 
-## Scripts
+## `scripts/docker/test.sh`
 
-### test.sh
+Builds `revula:latest` and runs stdio-compatible checks:
 
-Automated Docker build and comprehensive testing script.
+1. Docker availability
+2. Image build
+3. Python package/version smoke test
+4. Tool registry load test
+5. Availability report command
+6. Core Python dependency imports
+7. Core external binary checks
 
-**Usage:**
+Run:
+
 ```bash
 ./scripts/docker/test.sh
 ```
 
-**What it does:**
-1. Checks if Docker is installed and running
-2. Builds the Docker image with all tools
-3. Tests revula command (--version, --list-tools)
-4. Tests Python dependencies (capstone, lief, pefile, yara, angr, frida, androguard)
-5. Tests GDB availability
-6. Tests radare2 availability
-7. Tests Ghidra availability (analyzeHeadless)
-8. Tests Frida availability
-9. Tests Android tools (apktool, jadx)
+## `scripts/docker/validate.sh`
 
-**Requirements:**
-- Docker installed and running
-- Current directory: project root
+Validates Docker-related repo configuration:
 
-**Exit codes:**
-- 0: All tests passed
-- 1: Test failed or Docker not available
+1. Required files exist
+2. Dockerfile/compose structure checks
+3. `.dockerignore` sanity
+4. Requirements/docs presence checks
 
-### validate.sh
+Run:
 
-Docker configuration validation script.
-
-**Usage:**
 ```bash
 ./scripts/docker/validate.sh
 ```
 
-**What it does:**
-1. Checks all required Docker files exist
-2. Validates Dockerfile syntax
-3. Validates docker-compose.yml structure
-4. Checks .dockerignore patterns
-5. Verifies Python requirements
-6. Validates documentation completeness
-7. Checks script executability
-
-**Requirements:**
-- Current directory: project root
-
-**Exit codes:**
-- 0: All checks passed or warnings only
-- 1: Critical errors found
-
-## Quick Reference
+## Quick usage
 
 ```bash
-# Validate configuration before building
 ./scripts/docker/validate.sh
-
-# Build and test Docker image
 ./scripts/docker/test.sh
-
-# If tests pass, use the image
-docker run -i --rm -v $(pwd)/workspace:/workspace revula:latest
-
-# Or use docker-compose
-docker-compose --profile sse up -d
+docker compose --profile stdio run --rm revula-stdio
 ```
 
-## Integration with CI/CD
+## References
 
-These scripts are designed to be used in CI/CD pipelines:
-
-```yaml
-# Example GitHub Actions
-- name: Validate Docker configuration
-  run: ./scripts/docker/validate.sh
-
-- name: Build and test Docker image
-  run: ./scripts/docker/test.sh
-```
-
-## Troubleshooting
-
-### Docker not available
-```
-ERROR: Docker is not installed or not in PATH
-```
-**Solution:** Install Docker from https://docs.docker.com/get-docker/
-
-### Docker daemon not running
-```
-ERROR: Docker daemon is not running
-```
-**Solution:** Start Docker Desktop or run `sudo systemctl start docker`
-
-### Build fails
-```
-[FAIL] Docker build failed
-```
-**Solution:** Check build logs and ensure all dependencies are available
-
-### Tests fail
-```
-[FAIL] Test X failed
-```
-**Solution:** Check test output for specific errors and verify tool installation
-
-## See Also
-
-- [DOCKER.md](../../DOCKER.md) - Complete Docker documentation
-- [DOCKER-QUICKREF.md](../../DOCKER-QUICKREF.md) - Quick reference guide
-- [DOCKER-COMPLETE.md](../../DOCKER-COMPLETE.md) - Technical specifications
+- [DOCKER.md](../../DOCKER.md)
+- [DOCKER-QUICKREF.md](../../DOCKER-QUICKREF.md)
