@@ -114,6 +114,8 @@ def check_python_imports(report: ValidationReport) -> None:
     optional_modules = [
         ("frida",       "frida",          False),
         ("angr",        "angr",           False),
+        ("unicorn",     "unicorn",        False),
+        ("lldb",        "lldb",           False),
         ("r2pipe",      "r2pipe",         False),
         ("scapy",       "scapy.all",      False),
         ("androguard",  "androguard",     False),
