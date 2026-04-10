@@ -21,6 +21,9 @@ readonly LOG_FILE="${REMCP_DIR}/install.log"
 readonly GHIDRA_VERSION="11.2.1"
 readonly GHIDRA_DATE="20241105"
 readonly GHIDRA_URL="https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghidra_${GHIDRA_VERSION}_build/ghidra_${GHIDRA_VERSION}_PUBLIC_${GHIDRA_DATE}.zip"
+readonly APKTOOL_VERSION="2.10.0"
+readonly APKTOOL_JAR_URL="https://github.com/iBotPeaches/Apktool/releases/download/v${APKTOOL_VERSION}/apktool_${APKTOOL_VERSION}.jar"
+readonly APKTOOL_SCRIPT_URL="https://raw.githubusercontent.com/iBotPeaches/Apktool/v${APKTOOL_VERSION}/scripts/linux/apktool"
 readonly YARA_RULES_REPO="https://github.com/Yara-Rules/rules/archive/refs/heads/master.zip"
 
 # Flags (defaults)
@@ -53,6 +56,38 @@ warn()    { echo -e "${YELLOW}[WARN]${NC}  $*" | tee -a "$LOG_FILE"; }
 error()   { echo -e "${RED}[ERR!]${NC}  $*" | tee -a "$LOG_FILE" >&2; }
 
 die() { error "$@"; exit 1; }
+
+sha256_file() {
+    local file="$1"
+    if command -v sha256sum &>/dev/null; then
+        sha256sum "$file" | awk '{print $1}'
+    elif command -v shasum &>/dev/null; then
+        shasum -a 256 "$file" | awk '{print $1}'
+    else
+        return 1
+    fi
+}
+
+sync_legacy_yara_dir() {
+    local canonical_dir="$1"
+    local legacy_dir="$2"
+
+    if [[ ! -d "$canonical_dir" ]]; then
+        return
+    fi
+
+    if [[ -L "$legacy_dir" ]]; then
+        ln -sfn "$canonical_dir" "$legacy_dir" 2>/dev/null || true
+        return
+    fi
+
+    if [[ -d "$legacy_dir" ]]; then
+        cp -rn "${canonical_dir}/." "$legacy_dir/" 2>/dev/null || true
+        return
+    fi
+
+    ln -s "$canonical_dir" "$legacy_dir" 2>/dev/null || cp -r "$canonical_dir" "$legacy_dir" 2>/dev/null || true
+}
 
 banner() {
     echo -e "${BOLD}"
@@ -284,13 +319,12 @@ install_system_deps() {
                 # apktool — download wrapper + jar for Linux
                 if ! command -v apktool &>/dev/null; then
                     info "Downloading apktool..."
-                    local apktool_ver="2.10.0"
                     local apktool_dir="${REMCP_DIR}/apktool"
                     mkdir -p "$apktool_dir"
                     if curl -fSL -o "${apktool_dir}/apktool.jar" \
-                        "https://github.com/iBotPeaches/Apktool/releases/download/v${apktool_ver}/apktool_${apktool_ver}.jar" 2>>"$LOG_FILE" && \
+                        "$APKTOOL_JAR_URL" 2>>"$LOG_FILE" && \
                        curl -fSL -o "${apktool_dir}/apktool" \
-                        "https://raw.githubusercontent.com/iBotPeaches/Apktool/master/scripts/linux/apktool" 2>>"$LOG_FILE"; then
+                        "$APKTOOL_SCRIPT_URL" 2>>"$LOG_FILE"; then
                         chmod +x "${apktool_dir}/apktool"
                         success "apktool installed to ${apktool_dir}/apktool"
                         info "Add to PATH: export PATH=\"${apktool_dir}:\$PATH\""
@@ -306,13 +340,16 @@ install_system_deps() {
 
     # Pip-installable CLI tools (floss, capa) — these are Python packages that provide CLI commands
     if [[ "$FLAG_MINIMAL" == false ]]; then
-        info "Installing pip-based CLI tools (floss, capa)..."
+        info "Installing pip-based CLI tools (floss, capa, ROPgadget, ropper)..."
         $PIP install --upgrade "flare-floss>=3.0.0" >> "$LOG_FILE" 2>&1 \
             && success "floss (FLARE) installed." \
             || warn "floss install failed — install manually: pip install flare-floss"
         $PIP install --upgrade "flare-capa>=7.0.0" >> "$LOG_FILE" 2>&1 \
             && success "capa (FLARE) installed." \
             || warn "capa install failed — install manually: pip install flare-capa"
+        $PIP install --upgrade "ROPGadget" "ropper" >> "$LOG_FILE" 2>&1 \
+            && success "ROPgadget/ropper installed." \
+            || warn "ROPgadget/ropper install failed — install manually: pip install ROPGadget ropper"
 
         if ! command -v one_gadget &>/dev/null; then
             if command -v gem &>/dev/null; then
@@ -326,6 +363,17 @@ install_system_deps() {
         else
             success "one_gadget already available: $(command -v one_gadget)"
         fi
+    fi
+
+    # Fail hard if core runtime tools are still unavailable after install.
+    local missing_core_tools=()
+    for core_tool in gdb objdump strings; do
+        if ! command -v "$core_tool" &>/dev/null; then
+            missing_core_tools+=("$core_tool")
+        fi
+    done
+    if [[ "${#missing_core_tools[@]}" -gt 0 ]]; then
+        die "Missing required system tools after install: ${missing_core_tools[*]}"
     fi
 
     success "System dependencies installed."
@@ -352,7 +400,7 @@ install_python_deps() {
     info "Installing core Python packages..."
     $PIP install --upgrade "${core_pkgs[@]}" >> "$LOG_FILE" 2>&1 \
         && success "Core Python packages installed." \
-        || warn "Some core packages may have failed — check $LOG_FILE"
+        || die "Core Python package installation failed — check $LOG_FILE"
 
     if [[ "$FLAG_MINIMAL" == true ]]; then
         info "--minimal mode: skipping optional Python packages."
@@ -430,6 +478,25 @@ install_ghidra() {
         return
     fi
 
+    local checksum_url="${GHIDRA_URL}.sha256"
+    local checksum_file
+    checksum_file="$(mktemp /tmp/ghidra_sha_XXXXXX.txt)"
+    if ! curl -fSL --progress-bar -o "$checksum_file" "$checksum_url"; then
+        warn "Could not download Ghidra checksum (${checksum_url}); skipping auto-install for integrity."
+        rm -f "$tmp_zip" "$checksum_file"
+        return
+    fi
+    local expected_sha actual_sha
+    expected_sha="$(awk '{print $1}' "$checksum_file" | head -1 | tr -d '\r')"
+    actual_sha="$(sha256_file "$tmp_zip" || true)"
+    rm -f "$checksum_file"
+    if [[ -z "$expected_sha" ]] || [[ -z "$actual_sha" ]] || [[ "$expected_sha" != "$actual_sha" ]]; then
+        warn "Ghidra checksum verification failed (expected=${expected_sha:-missing}, actual=${actual_sha:-missing})."
+        warn "Skipping automatic Ghidra install."
+        rm -f "$tmp_zip"
+        return
+    fi
+
     info "Extracting Ghidra..."
     mkdir -p "${REMCP_DIR}"
     local extract_dir
@@ -466,10 +533,18 @@ download_yara_rules() {
         return
     fi
 
-    local rules_dir="${REMCP_DIR}/yara-rules"
+    local rules_dir="${REMCP_DIR}/yara_rules"
+    local legacy_rules_dir="${REMCP_DIR}/yara-rules"
+
+    if [[ -d "$legacy_rules_dir" ]] && [[ ! -d "$rules_dir" ]]; then
+        info "Migrating legacy YARA rules directory (${legacy_rules_dir}) to ${rules_dir}"
+        mkdir -p "$rules_dir"
+        cp -rn "${legacy_rules_dir}/." "$rules_dir/" 2>/dev/null || true
+    fi
 
     if [[ -d "$rules_dir" ]] && [[ "$(find "$rules_dir" -name '*.yar' 2>/dev/null | head -1)" ]]; then
         success "YARA rules already present at $rules_dir"
+        sync_legacy_yara_dir "$rules_dir" "$legacy_rules_dir"
         return
     fi
 
@@ -502,6 +577,7 @@ download_yara_rules() {
     local count
     count="$(find "$rules_dir" -name '*.yar' -o -name '*.yara' 2>/dev/null | wc -l)"
     success "YARA rules installed: ${count} rule files in $rules_dir"
+    sync_legacy_yara_dir "$rules_dir" "$legacy_rules_dir"
 }
 
 # ---------------------------------------------------------------------------
