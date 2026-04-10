@@ -39,6 +39,7 @@ _QEMU_USER: dict[str, str] = {
         "syscall tracing, strace, and GDB stub for cross-arch debugging."
     ),
     category="platform",
+    requires_tools=["qemu_user"],
     input_schema={
         "type": "object",
         "required": ["binary_path", "action"],
