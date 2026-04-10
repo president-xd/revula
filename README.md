@@ -177,8 +177,8 @@ Revula can be run in Docker for an isolated, stdio-only environment with core an
 docker build -t revula:latest .
 
 # Quick test
-docker run --rm revula:latest python -c "import revula; print(revula.__version__)"
-docker run --rm revula:latest python -c "from revula.server import _register_all_tools; from revula.tools import TOOL_REGISTRY; _register_all_tools(); print(TOOL_REGISTRY.count())"
+docker run --rm --entrypoint python revula:latest -c "import revula; print(revula.__version__)"
+docker run --rm --entrypoint python revula:latest -c "from revula.server import _register_all_tools; from revula.tools import TOOL_REGISTRY; _register_all_tools(); print(TOOL_REGISTRY.count())"
 
 # Run in stdio mode (for local MCP clients)
 docker run -i --rm -v $(pwd)/workspace:/workspace -v revula-data:/root/.revula revula:latest
@@ -193,10 +193,12 @@ docker run -i --rm -v $(pwd)/workspace:/workspace -v revula-data:/root/.revula r
 - angr symbolic execution engine
 - Frida dynamic instrumentation
 - Ghidra headless analyzer
-- GDB, radare2, rizin, binutils
-- ADB and Android tools (apktool, jadx)
+- GDB/LLDB, radare2, rizin (+ rz-diff), binutils
+- ADB and Android tools (apktool, jadx, aapt, apksigner, smali/baksmali)
 - FLARE tools (FLOSS, capa)
-- Network analysis tools (tcpdump, tshark)
+- RetDec, CFR, Detect-It-Easy (diec), DynamoRIO (drrun), UPX
+- Exploit tooling (msfvenom, one_gadget), checksec, mono tools (monodis/ikdasm), llvm-pdbutil
+- Network analysis tools (tcpdump, tshark, capinfos)
 
 **Testing the Docker build:**
 ```bash
@@ -653,7 +655,11 @@ Environment variables override config file values:
 
 ```bash
 export GHIDRA_HEADLESS=/opt/ghidra/support/analyzeHeadless  # Ghidra headless binary
+export RADARE2_PATH=/usr/bin/radare2                         # radare2 binary
+export RIZIN_PATH=/usr/local/bin/rizin                       # rizin binary
 export RETDEC_PATH=/usr/local/bin/retdec-decompiler         # RetDec decompiler binary
+export RZ_DIFF_PATH=/usr/local/bin/rz-diff                  # rizin diff tool
+export MSFVENOM_PATH=/usr/bin/msfvenom                      # metasploit payload generator
 export REVULA_DEFAULT_TIMEOUT=120                            # Subprocess timeout (seconds)
 export REVULA_MAX_MEMORY_MB=1024                             # Memory limit (MB)
 ```
@@ -677,7 +683,7 @@ revula degrades gracefully. Tools that depend on missing backends return clear e
 | **Protocol** | Binary protocol dissection, fuzzing | `tshark` | `scapy` |
 | **Unpacking** | Packer signature detection | `upx` | `frida` |
 | **Deobfuscation** | XOR/ROT/Base64 deobfuscation | | `capstone` ✓ |
-| **Symbolic** | | | `angr`, `triton` |
+| **Symbolic** | | | `angr`, `triton` (source-build only) |
 | **Binary Formats** | | `aapt`, `javap`, `monodis`, `wasm2wat` | |
 | **Utilities** | Hex dump, binary diff, patching | `tshark` | `scapy`, `ssdeep`, `tlsh` |
 
@@ -708,17 +714,18 @@ pip install -e ".[full]"
 ### Installing External Tools (Debian/Ubuntu/Kali)
 
 ```bash
-# Core analysis
-sudo apt install gdb binutils radare2 binwalk upx-ucl
+# Core analysis/tooling from distro repos
+sudo apt install gdb binutils binwalk checksec apksigner mono-utils mono-devel ruby-full llvm-19
 
 # Android RE
-sudo apt install apktool jadx android-sdk adb zipalign apksigner
+sudo apt install apktool jadx android-sdk adb zipalign
 
 # Network
 sudo apt install tshark
 
-# Ghidra: download from https://ghidra-sre.org/
-export GHIDRA_INSTALL=/opt/ghidra
+# For full optional toolchain coverage (radare2/rizin/upx/drrun/msfvenom/retdec/diec/cfr),
+# use the maintained installer:
+bash scripts/install/install_all.sh
 ```
 
 ---
