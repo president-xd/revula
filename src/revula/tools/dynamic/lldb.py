@@ -261,6 +261,7 @@ class LLDBAPISession:
     },
     category="dynamic",
     requires_tools=["lldb"],
+    requires_modules=["lldb"],
 )
 async def handle_lldb_launch(arguments: dict[str, Any]) -> list[dict[str, Any]]:
     """Launch under LLDB."""
