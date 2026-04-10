@@ -85,6 +85,17 @@ class TestValidatePathTraversal:
         result = validate_path(str(target), [str(tmp_dir)])
         assert result == target.resolve()
 
+    def test_sibling_prefix_escape_rejected(self, tmp_dir: Path) -> None:
+        allowed = tmp_dir / "allowed"
+        allowed.mkdir()
+
+        escaped = tmp_dir / "allowed_evil" / "x.bin"
+        escaped.parent.mkdir()
+        escaped.write_bytes(b"\x00")
+
+        with pytest.raises(PathValidationError):
+            validate_path(str(escaped), [str(allowed)])
+
     def test_empty_path_rejected(self, tmp_dir: Path) -> None:
         with pytest.raises((PathValidationError, ValueError)):
             validate_path("", [str(tmp_dir)])

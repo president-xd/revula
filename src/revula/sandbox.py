@@ -167,10 +167,15 @@ def validate_path(
         for allowed in allowed_dirs:
             try:
                 allowed_resolved = Path(allowed).resolve(strict=False)
-                if resolved_str.startswith(str(allowed_resolved)):
-                    in_allowed = True
-                    break
-            except (OSError, ValueError):
+                # Use path-boundary checks, not naive string prefixes.
+                # This prevents sibling-prefix escapes like /allowed_evil when
+                # only /allowed is allowlisted.
+                resolved.relative_to(allowed_resolved)
+                in_allowed = True
+                break
+            except ValueError:
+                continue
+            except OSError:
                 continue
 
         if not in_allowed:
