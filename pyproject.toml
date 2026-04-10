@@ -62,8 +62,9 @@ android = [
     "quark-engine",
 ]
 flare = ["flare-floss>=3.0.0", "flare-capa>=7.0.0"]
+exploit = ["ROPGadget", "ropper"]
 full = [
-    "revula[frida,angr,r2,crypto,network,android,flare]",
+    "revula[frida,angr,r2,crypto,network,android,flare,exploit]",
     "uncompyle6>=3.9.0",
 ]
 
