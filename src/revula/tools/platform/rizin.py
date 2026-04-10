@@ -169,6 +169,7 @@ async def handle_rizin_analyze(arguments: dict[str, Any]) -> list[dict[str, Any]
         "and basic-block-level differences."
     ),
     category="platform",
+    requires_tools=["rz_diff"],
     input_schema={
         "type": "object",
         "required": ["binary_a", "binary_b"],
