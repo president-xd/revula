@@ -25,8 +25,22 @@ readonly APKTOOL_VERSION="2.10.0"
 readonly APKTOOL_JAR_URL="https://github.com/iBotPeaches/Apktool/releases/download/v${APKTOOL_VERSION}/apktool_${APKTOOL_VERSION}.jar"
 readonly APKTOOL_SCRIPT_URL="https://raw.githubusercontent.com/iBotPeaches/Apktool/v${APKTOOL_VERSION}/scripts/linux/apktool"
 readonly SMALI_VERSION="2.5.2"
-readonly SMALI_JAR_URL="https://github.com/JesusFreke/smali/releases/download/v${SMALI_VERSION}/smali-${SMALI_VERSION}.jar"
-readonly BAKSMALI_JAR_URL="https://github.com/JesusFreke/smali/releases/download/v${SMALI_VERSION}/baksmali-${SMALI_VERSION}.jar"
+readonly SMALI_JAR_URL="https://repo.maven.apache.org/maven2/org/smali/smali/${SMALI_VERSION}/smali-${SMALI_VERSION}.jar"
+readonly BAKSMALI_JAR_URL="https://repo.maven.apache.org/maven2/org/smali/baksmali/${SMALI_VERSION}/baksmali-${SMALI_VERSION}.jar"
+readonly CFR_VERSION="0.152"
+readonly CFR_JAR_URL="https://www.benf.org/other/cfr/cfr-${CFR_VERSION}.jar"
+readonly RADARE2_VERSION="6.1.2"
+readonly RADARE2_DEB_URL="https://github.com/radareorg/radare2/releases/download/${RADARE2_VERSION}/radare2_${RADARE2_VERSION}_amd64.deb"
+readonly RIZIN_VERSION="0.8.2"
+readonly RIZIN_TAR_URL="https://github.com/rizinorg/rizin/releases/download/v${RIZIN_VERSION}/rizin-v${RIZIN_VERSION}-static-x86_64.tar.xz"
+readonly DYNAMORIO_VERSION="11.91.20545"
+readonly DYNAMORIO_TAR_URL="https://github.com/DynamoRIO/dynamorio/releases/download/cronbuild-${DYNAMORIO_VERSION}/DynamoRIO-Linux-${DYNAMORIO_VERSION}.tar.gz"
+readonly DIE_VERSION="3.10"
+readonly DIE_DEB_URL="https://github.com/horsicq/DIE-engine/releases/download/${DIE_VERSION}/die_${DIE_VERSION}_Debian_12_amd64.deb"
+readonly UPX_VERSION="5.1.1"
+readonly UPX_TAR_URL="https://github.com/upx/upx/releases/download/v${UPX_VERSION}/upx-${UPX_VERSION}-amd64_linux.tar.xz"
+readonly RETDEC_VERSION="5.0"
+readonly RETDEC_TAR_URL="https://github.com/avast/retdec/releases/download/v${RETDEC_VERSION}/RetDec-v${RETDEC_VERSION}-Linux-Release.tar.xz"
 readonly YARA_RULES_REPO="https://github.com/Yara-Rules/rules/archive/refs/heads/master.zip"
 
 # Flags (defaults)
@@ -222,7 +236,8 @@ install_system_deps() {
         [upx]=upx-ucl [qemu_user]=qemu-user [qemu_system]=qemu-system [qemu_utils]=qemu-utils
         [radare2]=radare2
         [lldb]=lldb [rizin]=rizin [tshark]=tshark
-        [wabt]=wabt [libfuzzy]=libfuzzy-dev [llvm]=llvm
+        [wabt]=wabt [libfuzzy]=libfuzzy-dev [llvm]=llvm [ruby]=ruby-full
+        [apksigner]=apksigner
         [checksec]=checksec [monodis]=mono-utils [msfvenom]=metasploit-framework
         [drrun]=dynamorio [adb]=adb
     )
@@ -231,7 +246,8 @@ install_system_deps() {
         [upx]=upx [qemu_user]=qemu-user-static [qemu_system]=qemu-system-x86 [qemu_utils]=qemu-img
         [radare2]=radare2
         [lldb]=lldb [rizin]=rizin [tshark]=wireshark-cli
-        [wabt]=wabt [libfuzzy]=ssdeep-devel [llvm]=llvm
+        [wabt]=wabt [libfuzzy]=ssdeep-devel [llvm]=llvm [ruby]=ruby
+        [apksigner]=android-tools
         [checksec]=checksec [monodis]=mono-core [msfvenom]=metasploit
         [drrun]=dynamorio [adb]=android-tools
     )
@@ -240,7 +256,8 @@ install_system_deps() {
         [upx]=upx [qemu_user]=qemu-user [qemu_system]=qemu-full [qemu_utils]=qemu-full
         [radare2]=radare2
         [lldb]=lldb [rizin]=rizin [tshark]=wireshark-cli
-        [wabt]=wabt [libfuzzy]=ssdeep [llvm]=llvm
+        [wabt]=wabt [libfuzzy]=ssdeep [llvm]=llvm [ruby]=ruby
+        [apksigner]=android-sdk-build-tools
         [checksec]=checksec [monodis]=mono [msfvenom]=metasploit
         [drrun]=dynamorio [adb]=android-tools
     )
@@ -249,17 +266,18 @@ install_system_deps() {
         [upx]=upx [qemu_user]=qemu [qemu_system]=qemu [qemu_utils]=qemu
         [radare2]=radare2
         [lldb]=lldb [rizin]=rizin [tshark]=wireshark
-        [wabt]=wabt [libfuzzy]=ssdeep [llvm]=llvm
+        [wabt]=wabt [libfuzzy]=ssdeep [llvm]=llvm [ruby]=ruby
+        [apksigner]=android-platform-tools
         [checksec]=checksec [monodis]=mono [msfvenom]=metasploit
         [drrun]=dynamorio [adb]=android-platform-tools
     )
 
     local tools_to_install=(
-        gdb binutils binwalk upx
+        gdb binutils binwalk
         qemu_user qemu_system qemu_utils
-        radare2 lldb rizin tshark wabt
-        libfuzzy llvm
-        checksec monodis msfvenom drrun adb
+        lldb tshark wabt
+        libfuzzy llvm ruby
+        checksec monodis adb apksigner
     )
 
     for tool_key in "${tools_to_install[@]}"; do
@@ -385,6 +403,193 @@ EOF
         fi
     fi
 
+    # Fill optional tool gaps that are commonly missing from default distro repos.
+    if [[ "$FLAG_MINIMAL" == false ]]; then
+        local user_tools_dir="${REMCP_DIR}/tools"
+        local user_bin_dir="${HOME}/.local/bin"
+        local added_user_bin=false
+        mkdir -p "$user_tools_dir" "$user_bin_dir"
+
+        # CFR decompiler (jar + wrapper)
+        if ! command -v cfr &>/dev/null; then
+            info "Installing CFR decompiler wrapper..."
+            local cfr_dir="${user_tools_dir}/cfr"
+            mkdir -p "$cfr_dir"
+            if curl -fSL -o "${cfr_dir}/cfr.jar" "$CFR_JAR_URL" 2>>"$LOG_FILE"; then
+                cat > "${cfr_dir}/cfr" <<'EOF'
+#!/usr/bin/env bash
+DIR="$(cd "$(dirname "$0")" && pwd)"
+exec java -jar "${DIR}/cfr.jar" "$@"
+EOF
+                chmod +x "${cfr_dir}/cfr"
+                ln -sfn "${cfr_dir}/cfr" "${user_bin_dir}/cfr"
+                added_user_bin=true
+                success "cfr installed to ${cfr_dir}/cfr"
+            else
+                warn "cfr download failed — install manually from https://www.benf.org/other/cfr/"
+            fi
+        else
+            success "cfr already available: $(command -v cfr)"
+        fi
+
+        if [[ "$PKG_MGR" == "apt" ]]; then
+            # apksigner
+            if ! command -v apksigner &>/dev/null; then
+                pkg_install "apksigner" \
+                    && success "apksigner installed." \
+                    || warn "apksigner install failed — install manually: sudo apt install apksigner"
+            fi
+
+            # ikdasm is usually provided by mono-devel, monodis by mono-utils
+            if ! command -v ikdasm &>/dev/null; then
+                pkg_install "mono-devel" \
+                    && success "mono-devel installed (ikdasm)." \
+                    || warn "ikdasm unavailable — install manually: sudo apt install mono-devel"
+            fi
+
+            # pdbutil via LLVM (versioned binary is acceptable)
+            if ! command -v llvm-pdbutil &>/dev/null && ! command -v llvm-pdbutil-19 &>/dev/null; then
+                pkg_install "llvm-19" || pkg_install "llvm" \
+                    || warn "pdbutil unavailable — install manually: sudo apt install llvm-19"
+            fi
+
+            # msfvenom via Rapid7 apt repository
+            if ! command -v msfvenom &>/dev/null; then
+                info "Installing metasploit-framework (msfvenom) from apt.metasploit.com..."
+                local msf_key_tmp msf_keyring msf_repo
+                msf_key_tmp="$(mktemp /tmp/metasploit_key_XXXXXX.asc)"
+                msf_keyring="/usr/share/keyrings/metasploit-framework.gpg"
+                msf_repo="/etc/apt/sources.list.d/metasploit-framework.list"
+                if pkg_install "gnupg" && \
+                   curl -fSL -o "$msf_key_tmp" "https://apt.metasploit.com/metasploit-framework.gpg.key" 2>>"$LOG_FILE" && \
+                   sudo gpg --dearmor -o "$msf_keyring" "$msf_key_tmp" >>"$LOG_FILE" 2>&1; then
+                    echo "deb [signed-by=${msf_keyring}] https://apt.metasploit.com/ lucid main" | sudo tee "$msf_repo" >/dev/null
+                    if sudo apt-get update >>"$LOG_FILE" 2>&1 && \
+                       sudo apt-get install -y metasploit-framework >>"$LOG_FILE" 2>&1; then
+                        success "metasploit-framework installed (msfvenom)."
+                    else
+                        warn "metasploit-framework install failed — see $LOG_FILE"
+                    fi
+                    sudo rm -f "$msf_repo" "$msf_keyring" >>"$LOG_FILE" 2>&1 || true
+                    sudo apt-get update >>"$LOG_FILE" 2>&1 || true
+                else
+                    warn "Failed to configure metasploit apt repository."
+                fi
+                rm -f "$msf_key_tmp"
+            fi
+
+            # radare2 from upstream Debian package
+            if ! command -v r2 &>/dev/null; then
+                info "Installing radare2 from upstream release package..."
+                local radare2_deb
+                radare2_deb="$(mktemp /tmp/radare2_XXXXXX.deb)"
+                if curl -fSL -o "$radare2_deb" "$RADARE2_DEB_URL" 2>>"$LOG_FILE" && \
+                   sudo apt-get install -y "$radare2_deb" >>"$LOG_FILE" 2>&1; then
+                    success "radare2 installed."
+                else
+                    warn "radare2 install failed — install manually from https://github.com/radareorg/radare2/releases"
+                fi
+                rm -f "$radare2_deb"
+            fi
+
+            # Detect It Easy CLI (diec)
+            if ! command -v diec &>/dev/null; then
+                info "Installing Detect It Easy (diec)..."
+                local die_deb
+                die_deb="$(mktemp /tmp/die_XXXXXX.deb)"
+                if curl -fSL -o "$die_deb" "$DIE_DEB_URL" 2>>"$LOG_FILE" && \
+                   sudo apt-get install -y "$die_deb" >>"$LOG_FILE" 2>&1; then
+                    success "diec installed."
+                else
+                    warn "diec install failed — install manually from https://github.com/horsicq/DIE-engine/releases"
+                fi
+                rm -f "$die_deb"
+            fi
+        fi
+
+        # rizin + rz-diff (static bundle)
+        if ! command -v rizin &>/dev/null || ! command -v rz-diff &>/dev/null; then
+            info "Installing rizin static bundle..."
+            local rizin_dir="${user_tools_dir}/rizin"
+            local rizin_tar
+            rizin_tar="$(mktemp /tmp/rizin_XXXXXX.tar.xz)"
+            if curl -fSL -o "$rizin_tar" "$RIZIN_TAR_URL" 2>>"$LOG_FILE"; then
+                rm -rf "$rizin_dir"
+                mkdir -p "$rizin_dir"
+                tar -xf "$rizin_tar" -C "$rizin_dir" >>"$LOG_FILE" 2>&1
+                ln -sfn "${rizin_dir}/bin/rizin" "${user_bin_dir}/rizin"
+                ln -sfn "${rizin_dir}/bin/rz" "${user_bin_dir}/rz"
+                ln -sfn "${rizin_dir}/bin/rz-diff" "${user_bin_dir}/rz-diff"
+                added_user_bin=true
+                success "rizin/rz-diff installed to ${rizin_dir}"
+            else
+                warn "rizin download failed — install manually from https://github.com/rizinorg/rizin/releases"
+            fi
+            rm -f "$rizin_tar"
+        fi
+
+        # drrun (DynamoRIO)
+        if ! command -v drrun &>/dev/null; then
+            info "Installing DynamoRIO (drrun)..."
+            local dr_dir="${user_tools_dir}/dynamorio"
+            local dr_tar
+            dr_tar="$(mktemp /tmp/dynamorio_XXXXXX.tar.gz)"
+            if curl -fSL -o "$dr_tar" "$DYNAMORIO_TAR_URL" 2>>"$LOG_FILE"; then
+                rm -rf "$dr_dir"
+                mkdir -p "$dr_dir"
+                tar -xzf "$dr_tar" -C "$dr_dir" --strip-components=1 >>"$LOG_FILE" 2>&1
+                ln -sfn "${dr_dir}/bin64/drrun" "${user_bin_dir}/drrun"
+                added_user_bin=true
+                success "drrun installed to ${dr_dir}/bin64/drrun"
+            else
+                warn "DynamoRIO download failed — install manually from https://dynamorio.org/"
+            fi
+            rm -f "$dr_tar"
+        fi
+
+        # UPX
+        if ! command -v upx &>/dev/null; then
+            info "Installing UPX..."
+            local upx_dir="${user_tools_dir}/upx"
+            local upx_tar
+            upx_tar="$(mktemp /tmp/upx_XXXXXX.tar.xz)"
+            if curl -fSL -o "$upx_tar" "$UPX_TAR_URL" 2>>"$LOG_FILE"; then
+                rm -rf "$upx_dir"
+                mkdir -p "$upx_dir"
+                tar -xf "$upx_tar" -C "$upx_dir" >>"$LOG_FILE" 2>&1
+                ln -sfn "${upx_dir}/upx-${UPX_VERSION}-amd64_linux/upx" "${user_bin_dir}/upx"
+                added_user_bin=true
+                success "upx installed."
+            else
+                warn "UPX download failed — install manually from https://github.com/upx/upx/releases"
+            fi
+            rm -f "$upx_tar"
+        fi
+
+        # RetDec
+        if ! command -v retdec-decompiler &>/dev/null; then
+            info "Installing RetDec decompiler..."
+            local retdec_dir="${user_tools_dir}/retdec"
+            local retdec_tar
+            retdec_tar="$(mktemp /tmp/retdec_XXXXXX.tar.xz)"
+            if curl -fSL -o "$retdec_tar" "$RETDEC_TAR_URL" 2>>"$LOG_FILE"; then
+                rm -rf "$retdec_dir"
+                mkdir -p "$retdec_dir"
+                tar -xf "$retdec_tar" -C "$retdec_dir" >>"$LOG_FILE" 2>&1
+                ln -sfn "${retdec_dir}/bin/retdec-decompiler" "${user_bin_dir}/retdec-decompiler"
+                added_user_bin=true
+                success "retdec-decompiler installed."
+            else
+                warn "RetDec download failed — install manually from https://github.com/avast/retdec/releases"
+            fi
+            rm -f "$retdec_tar"
+        fi
+
+        if [[ "$added_user_bin" == true ]]; then
+            info "Ensure ~/.local/bin is on PATH: export PATH=\"${user_bin_dir}:\$PATH\""
+        fi
+    fi
+
     # Pip-installable CLI tools (floss, capa) — these are Python packages that provide CLI commands
     if [[ "$FLAG_MINIMAL" == false ]]; then
         info "Installing pip-based CLI tools (floss, capa, ROPgadget, ropper)..."
@@ -401,9 +606,20 @@ EOF
         if ! command -v one_gadget &>/dev/null; then
             if command -v gem &>/dev/null; then
                 info "Installing one_gadget via RubyGems..."
-                gem install --no-document one_gadget >> "$LOG_FILE" 2>&1 \
-                    && success "one_gadget installed." \
-                    || warn "one_gadget install failed — install manually: gem install one_gadget"
+                if gem install --no-document --user-install one_gadget >> "$LOG_FILE" 2>&1; then
+                    local gem_user_bin
+                    gem_user_bin="$(ruby -e 'print Gem.user_dir' 2>/dev/null)/bin"
+                    if [[ -x "${gem_user_bin}/one_gadget" ]]; then
+                        mkdir -p "${HOME}/.local/bin"
+                        ln -sfn "${gem_user_bin}/one_gadget" "${HOME}/.local/bin/one_gadget"
+                        success "one_gadget installed to ${gem_user_bin}/one_gadget"
+                        info "Ensure ~/.local/bin is on PATH: export PATH=\"${HOME}/.local/bin:\$PATH\""
+                    else
+                        success "one_gadget installed."
+                    fi
+                else
+                    warn "one_gadget install failed — install manually: gem install --user-install one_gadget"
+                fi
             else
                 warn "one_gadget not installed (Ruby gem 'gem' not found). Install manually: gem install one_gadget"
             fi
