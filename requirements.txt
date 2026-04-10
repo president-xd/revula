@@ -23,6 +23,8 @@ ppdeep>=1.1          # pure-Python ssdeep alternative (ssdeep C-ext breaks on Py
 
 # Optional — Android
 androguard>=3.4.0a1
+semgrep
+quark-engine
 
 # Optional — Python bytecode decompilation
 uncompyle6>=3.9.0
