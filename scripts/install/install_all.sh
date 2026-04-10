@@ -11,7 +11,7 @@ set -euo pipefail
 #
 # Options:
 #   --minimal       Only install core deps (mcp, jsonschema, capstone, lief, pefile, pyelftools, yara)
-#   --no-android    Skip Android-related tools (jadx, apktool, frida, androguard, semgrep, quark)
+#   --no-android    Skip Android-related tools (jadx, apktool, aapt, smali, frida, androguard, semgrep, quark)
 #   --no-ghidra     Skip Ghidra headless download
 #   --help          Show this help message
 # =============================================================================
@@ -24,6 +24,9 @@ readonly GHIDRA_URL="https://github.com/NationalSecurityAgency/ghidra/releases/d
 readonly APKTOOL_VERSION="2.10.0"
 readonly APKTOOL_JAR_URL="https://github.com/iBotPeaches/Apktool/releases/download/v${APKTOOL_VERSION}/apktool_${APKTOOL_VERSION}.jar"
 readonly APKTOOL_SCRIPT_URL="https://raw.githubusercontent.com/iBotPeaches/Apktool/v${APKTOOL_VERSION}/scripts/linux/apktool"
+readonly SMALI_VERSION="2.5.2"
+readonly SMALI_JAR_URL="https://github.com/JesusFreke/smali/releases/download/v${SMALI_VERSION}/smali-${SMALI_VERSION}.jar"
+readonly BAKSMALI_JAR_URL="https://github.com/JesusFreke/smali/releases/download/v${SMALI_VERSION}/baksmali-${SMALI_VERSION}.jar"
 readonly YARA_RULES_REPO="https://github.com/Yara-Rules/rules/archive/refs/heads/master.zip"
 
 # Flags (defaults)
@@ -115,7 +118,7 @@ parse_args() {
                 echo ""
                 echo "Options:"
                 echo "  --minimal       Only core Python deps (mcp, jsonschema, capstone, lief, pefile, pyelftools, yara-python)"
-                echo "  --no-android    Skip jadx, apktool, androguard, frida, semgrep, quark"
+                echo "  --no-android    Skip jadx, apktool, aapt, smali, androguard, frida, semgrep, quark"
                 echo "  --no-ghidra     Skip Ghidra headless download"
                 echo "  --help          Show this message"
                 exit 0
@@ -285,7 +288,7 @@ install_system_deps() {
         success "Java already available: $(java -version 2>&1 | head -1)"
     fi
 
-    # Android tools (jadx, apktool)
+    # Android tools (jadx, apktool, aapt, smali/baksmali)
     if [[ "$FLAG_NO_ANDROID" == false ]] && [[ "$FLAG_MINIMAL" == false ]]; then
         info "Installing Android RE tools..."
         case "$PKG_MGR" in
@@ -336,6 +339,50 @@ install_system_deps() {
                 fi
                 ;;
         esac
+
+        # aapt is required by APK analyzers
+        if ! command -v aapt &>/dev/null; then
+            info "aapt not found; attempting installation..."
+            case "$PKG_MGR" in
+                apt)
+                    pkg_install "android-sdk-build-tools" \
+                        || warn "aapt install failed — install manually: sudo apt install android-sdk-build-tools"
+                    ;;
+                *)
+                    warn "aapt not auto-installed on ${PKG_MGR:-unknown}. Install Android build tools manually."
+                    ;;
+            esac
+        else
+            success "aapt already available: $(command -v aapt)"
+        fi
+
+        # smali/baksmali are required for DEX disassembly/assembly handlers
+        if ! command -v smali &>/dev/null || ! command -v baksmali &>/dev/null; then
+            info "Installing smali/baksmali wrappers..."
+            local smali_dir="${REMCP_DIR}/smali"
+            mkdir -p "$smali_dir"
+            if curl -fSL -o "${smali_dir}/smali.jar" "$SMALI_JAR_URL" 2>>"$LOG_FILE" && \
+               curl -fSL -o "${smali_dir}/baksmali.jar" "$BAKSMALI_JAR_URL" 2>>"$LOG_FILE"; then
+                cat > "${smali_dir}/smali" <<'EOF'
+#!/usr/bin/env bash
+DIR="$(cd "$(dirname "$0")" && pwd)"
+exec java -jar "${DIR}/smali.jar" "$@"
+EOF
+                cat > "${smali_dir}/baksmali" <<'EOF'
+#!/usr/bin/env bash
+DIR="$(cd "$(dirname "$0")" && pwd)"
+exec java -jar "${DIR}/baksmali.jar" "$@"
+EOF
+                chmod +x "${smali_dir}/smali" "${smali_dir}/baksmali"
+                success "smali/baksmali installed to ${smali_dir}"
+                info "Add to PATH: export PATH=\"${smali_dir}:\$PATH\""
+            else
+                warn "smali/baksmali download failed — install manually: https://github.com/JesusFreke/smali"
+            fi
+        else
+            success "smali already available: $(command -v smali)"
+            success "baksmali already available: $(command -v baksmali)"
+        fi
     fi
 
     # Pip-installable CLI tools (floss, capa) — these are Python packages that provide CLI commands
