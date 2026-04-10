@@ -169,6 +169,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    bash \
     # Core utilities
     libmagic1 \
     libcapstone4 \
@@ -192,6 +193,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     mono-devel \
     ruby-full \
     llvm-19 \
+    llvm-19-tools \
     gnupg \
     qemu-user \
     qemu-system \
@@ -227,23 +229,60 @@ RUN set -eux; \
     mkdir -p /opt/rizin /opt/dynamorio /opt/upx /opt/retdec /opt/capa-rules; \
     curl -fsSL -o /tmp/rizin.tar.xz "https://github.com/rizinorg/rizin/releases/download/v${RIZIN_VERSION}/rizin-v${RIZIN_VERSION}-static-x86_64.tar.xz"; \
     tar -xf /tmp/rizin.tar.xz -C /opt/rizin; \
-    ln -sf /opt/rizin/bin/rizin /usr/local/bin/rizin; \
-    ln -sf /opt/rizin/bin/rz /usr/local/bin/rz; \
-    ln -sf /opt/rizin/bin/rz-diff /usr/local/bin/rz-diff; \
+    rizin_bin="$(find /opt/rizin -type f -name rizin | head -1)"; \
+    rz_bin="$(find /opt/rizin -type f -name rz | head -1)"; \
+    rz_diff_bin="$(find /opt/rizin -type f -name rz-diff | head -1)"; \
+    [ -n "${rizin_bin}" ] && [ -n "${rz_bin}" ] && [ -n "${rz_diff_bin}" ]; \
+    ln -sf "${rizin_bin}" /usr/local/bin/rizin; \
+    ln -sf "${rz_bin}" /usr/local/bin/rz; \
+    ln -sf "${rz_diff_bin}" /usr/local/bin/rz-diff; \
     curl -fsSL -o /tmp/dynamorio.tar.gz "https://github.com/DynamoRIO/dynamorio/releases/download/cronbuild-${DYNAMORIO_VERSION}/DynamoRIO-Linux-${DYNAMORIO_VERSION}.tar.gz"; \
     tar -xzf /tmp/dynamorio.tar.gz -C /opt/dynamorio --strip-components=1; \
-    printf '#!/usr/bin/env bash\nexec /opt/dynamorio/bin64/drrun "$@"\n' > /usr/local/bin/drrun; \
+    drrun_bin="$(find /opt/dynamorio -type f -path '*/bin64/drrun' | head -1)"; \
+    [ -n "${drrun_bin}" ]; \
+    printf '#!/usr/bin/env bash\nexec "%s" "$@"\n' "${drrun_bin}" > /usr/local/bin/drrun; \
     chmod +x /usr/local/bin/drrun; \
     curl -fsSL -o /tmp/upx.tar.xz "https://github.com/upx/upx/releases/download/v${UPX_VERSION}/upx-${UPX_VERSION}-amd64_linux.tar.xz"; \
     tar -xf /tmp/upx.tar.xz -C /opt/upx; \
-    ln -sf /opt/upx/upx-${UPX_VERSION}-amd64_linux/upx /usr/local/bin/upx; \
+    upx_bin="$(find /opt/upx -type f -name upx | head -1)"; \
+    [ -n "${upx_bin}" ]; \
+    ln -sf "${upx_bin}" /usr/local/bin/upx; \
     curl -fsSL -o /tmp/retdec.tar.xz "https://github.com/avast/retdec/releases/download/v${RETDEC_VERSION}/RetDec-v${RETDEC_VERSION}-Linux-Release.tar.xz"; \
     tar -xf /tmp/retdec.tar.xz -C /opt/retdec; \
-    ln -sf /opt/retdec/bin/retdec-decompiler /usr/local/bin/retdec-decompiler; \
+    retdec_bin="$(find /opt/retdec -type f -name retdec-decompiler | head -1)"; \
+    [ -n "${retdec_bin}" ]; \
+    ln -sf "${retdec_bin}" /usr/local/bin/retdec-decompiler; \
     curl -fsSL -o /tmp/cfr.jar "https://www.benf.org/other/cfr/cfr-${CFR_VERSION}.jar"; \
     mv /tmp/cfr.jar /opt/cfr.jar; \
     printf '#!/usr/bin/env bash\nexec java -jar /opt/cfr.jar "$@"\n' > /usr/local/bin/cfr; \
     chmod +x /usr/local/bin/cfr; \
+    one_gadget_bin="$(command -v one_gadget || true)"; \
+    if [ -z "${one_gadget_bin}" ]; then \
+        one_gadget_bin="$(find /var/lib/gems -type f -name one_gadget 2>/dev/null | head -1 || true)"; \
+    fi; \
+    [ -n "${one_gadget_bin}" ]; \
+    ln -sf "${one_gadget_bin}" /usr/local/bin/one_gadget; \
+    if ! command -v r2 >/dev/null 2>&1 && command -v radare2 >/dev/null 2>&1; then \
+        ln -sf "$(command -v radare2)" /usr/local/bin/r2; \
+    fi; \
+    if ! command -v llvm-pdbutil >/dev/null 2>&1 && command -v llvm-pdbutil-19 >/dev/null 2>&1; then \
+        ln -sf "$(command -v llvm-pdbutil-19)" /usr/local/bin/llvm-pdbutil; \
+    fi; \
+    command -v apksigner >/dev/null; \
+    command -v checksec >/dev/null; \
+    command -v diec >/dev/null; \
+    command -v drrun >/dev/null; \
+    command -v ikdasm >/dev/null; \
+    command -v monodis >/dev/null; \
+    command -v msfvenom >/dev/null; \
+    command -v one_gadget >/dev/null; \
+    command -v r2 >/dev/null; \
+    command -v retdec-decompiler >/dev/null; \
+    command -v rizin >/dev/null; \
+    command -v rz-diff >/dev/null; \
+    command -v upx >/dev/null; \
+    command -v cfr >/dev/null; \
+    (command -v llvm-pdbutil >/dev/null || command -v llvm-pdbutil-19 >/dev/null); \
     curl -fsSL -o /tmp/capa-rules.tar.gz "https://github.com/mandiant/capa-rules/archive/refs/heads/master.tar.gz"; \
     tar -xzf /tmp/capa-rules.tar.gz -C /opt/capa-rules --strip-components=1; \
     rm -rf /var/lib/apt/lists/* /tmp/*; \
