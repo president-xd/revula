@@ -182,6 +182,7 @@ async def handle_qemu_user(arguments: dict[str, Any]) -> list[dict[str, Any]]:
         "firmware analysis via full-system emulation."
     ),
     category="platform",
+    requires_tools=["qemu_img"],
     input_schema={
         "type": "object",
         "required": ["action"],
