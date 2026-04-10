@@ -9,14 +9,16 @@ from __future__ import annotations
 import json
 import tempfile
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
-from revula.config import ServerConfig, ToolInfo, get_config, reload_config
+from revula.config import SecurityConfig, ServerConfig, ToolInfo, get_config, load_config, reload_config
 from revula.sandbox import (
     PathValidationError,
     SubprocessResult,
     safe_subprocess,
+    safe_subprocess_sync,
     validate_path,
 )
 from revula.session import (
@@ -57,6 +59,49 @@ class TestConfig:
         assert info.available
         assert info.name == "test"
 
+    def test_env_override_uses_canonical_tool_key(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ) -> None:
+        fake = tmp_path / "analyzeHeadless"
+        fake.write_text("#!/bin/sh\nexit 0\n")
+        fake.chmod(0o755)
+
+        monkeypatch.setenv("GHIDRA_HEADLESS", str(fake))
+        cfg = load_config()
+        assert cfg.tools["ghidra_headless"].available is True
+        assert cfg.tools["ghidra_headless"].path == str(fake)
+
+    def test_legacy_tool_key_aliases_still_work(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ) -> None:
+        from revula import config as config_mod
+
+        fake_ghidra = tmp_path / "legacy_ghidra"
+        fake_retdec = tmp_path / "legacy_retdec"
+        fake_ghidra.write_text("#!/bin/sh\nexit 0\n")
+        fake_retdec.write_text("#!/bin/sh\nexit 0\n")
+        fake_ghidra.chmod(0o755)
+        fake_retdec.chmod(0o755)
+
+        monkeypatch.setattr(
+            config_mod,
+            "_load_config_file",
+            lambda: {
+                "tools": {
+                    "ghidra": {"path": str(fake_ghidra)},
+                    "retdec": {"path": str(fake_retdec)},
+                },
+            },
+        )
+
+        cfg = config_mod.load_config()
+        assert cfg.tools["ghidra_headless"].path == str(fake_ghidra)
+        assert cfg.tools["retdec_decompiler"].path == str(fake_retdec)
+
 
 # ---------------------------------------------------------------------------
 # Sandbox Tests
@@ -96,6 +141,96 @@ class TestSandbox:
         assert r.success
         r2 = SubprocessResult(stdout="", stderr="err", returncode=1, timed_out=False)
         assert not r2.success
+
+    def test_safe_subprocess_sync_uses_security_defaults(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from revula import sandbox as sandbox_mod
+
+        security = SecurityConfig(default_timeout=1, max_memory_mb=50, max_timeout=10)
+        monkeypatch.setattr(sandbox_mod, "get_security_config", lambda: security)
+
+        captured: dict[str, int] = {}
+
+        def fake_make_preexec_fn(mem_mb: int, cpu_seconds: int) -> None:
+            captured["memory_mb"] = mem_mb
+            captured["cpu_seconds"] = cpu_seconds
+            return None
+
+        def fake_run(*args: object, **kwargs: object) -> object:
+            captured["timeout"] = int(kwargs["timeout"])  # type: ignore[index]
+            return SimpleNamespace(stdout="ok\n", stderr="", returncode=0)
+
+        monkeypatch.setattr(sandbox_mod, "_make_preexec_fn", fake_make_preexec_fn)
+        monkeypatch.setattr(sandbox_mod.subprocess, "run", fake_run)
+
+        result = safe_subprocess_sync(["echo", "ok"])
+        assert result.success
+        assert captured["timeout"] == 1
+        assert captured["memory_mb"] == 50
+        assert captured["cpu_seconds"] == 1
+
+    def test_safe_subprocess_preflight_missing_known_tool(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from revula import sandbox as sandbox_mod
+
+        security = SecurityConfig(default_timeout=5, max_memory_mb=64, max_timeout=10)
+        monkeypatch.setattr(sandbox_mod, "get_security_config", lambda: security)
+
+        fake_config = SimpleNamespace(
+            tools={
+                "binwalk": ToolInfo(
+                    name="binwalk",
+                    available=False,
+                    install_hint="Install: apt install binwalk",
+                )
+            }
+        )
+        monkeypatch.setattr("revula.config.get_config", lambda: fake_config)
+
+        result = safe_subprocess_sync(["binwalk", "--help"])
+        assert not result.success
+        assert "Required external tool 'binwalk' is not installed." in result.stderr
+        assert "apt install binwalk" in result.stderr
+
+
+class TestCoverageTool:
+    """Coverage tool edge-case tests."""
+
+    @pytest.mark.asyncio
+    async def test_collect_drcov_uses_require_tool(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ) -> None:
+        from revula.tools.dynamic import coverage as coverage_mod
+
+        captured: dict[str, list[str]] = {}
+
+        async def fake_safe_subprocess(cmd: list[str], **kwargs: object) -> SimpleNamespace:
+            captured["cmd"] = cmd
+            return SimpleNamespace(success=False, stderr="mock failure")
+
+        class _Cfg:
+            def require_tool(self, name: str) -> str:
+                assert name == "drrun"
+                return "/opt/dynamorio/bin64/drrun"
+
+        monkeypatch.setattr(coverage_mod, "safe_subprocess", fake_safe_subprocess)
+
+        result = await coverage_mod._collect_drcov(
+            binary=Path("/bin/true"),
+            args=[],
+            output_path=str(tmp_path / "out.cov"),
+            timeout=5,
+            config=_Cfg(),
+        )
+        payload = json.loads(result[0]["text"])
+        assert payload["error"] is True
+        assert captured["cmd"][0] == "/opt/dynamorio/bin64/drrun"
 
 
 # ---------------------------------------------------------------------------
