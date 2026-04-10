@@ -155,7 +155,13 @@ echo "────────────────────────�
 check_command "gdb"        "true"
 check_command "objdump"    "true"
 check_command "strings"    "true"
-check_command "r2"         "false"
+if command -v r2 &>/dev/null; then
+    pass "r2  →  $(command -v r2)"
+elif command -v radare2 &>/dev/null; then
+    pass "r2  →  $(command -v radare2)"
+else
+    skip "r2  →  not found"
+fi
 check_command "rizin"      "false"
 check_command "lldb"       "false"
 check_command "checksec"   "false"
@@ -183,8 +189,15 @@ check_command "cfr"             "false"
 check_command "diec"            "false"
 check_command "rz-diff"         "false"
 check_command "retdec-decompiler" "false"
-if command -v llvm-pdbutil &>/dev/null || command -v llvm-pdbutil-19 &>/dev/null; then
-    pass "llvm-pdbutil  →  $(command -v llvm-pdbutil || command -v llvm-pdbutil-19)"
+_pdbutil_cmd=""
+for _pdb_candidate in llvm-pdbutil llvm-pdbutil-20 llvm-pdbutil-19 llvm-pdbutil-18 llvm-pdbutil-17 llvm-pdbutil-16 llvm-pdbutil-15 llvm-pdbutil-14; do
+    if command -v "$_pdb_candidate" &>/dev/null; then
+        _pdbutil_cmd="$(command -v "$_pdb_candidate")"
+        break
+    fi
+done
+if [[ -n "${_pdbutil_cmd}" ]]; then
+    pass "llvm-pdbutil  →  ${_pdbutil_cmd}"
 else
     skip "llvm-pdbutil  →  not found"
 fi
