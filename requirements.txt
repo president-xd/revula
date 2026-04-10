@@ -33,6 +33,9 @@ uncompyle6>=3.9.0
 flare-floss>=3.0.0
 flare-capa>=7.0.0
 
+# Optional — emulation backend for shellcode test_emulate
+unicorn>=2.0.0
+
 # Optional — exploit helper CLIs
 ROPGadget
 ropper
