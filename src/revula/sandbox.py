@@ -288,11 +288,11 @@ def _make_preexec_fn(max_memory_mb: int, max_cpu_seconds: int):  # type: ignore[
 def safe_subprocess_sync(
     cmd: list[str],
     *,
-    timeout: int = 60,
+    timeout: int | None = None,
     cwd: str | Path | None = None,
     env: dict[str, str] | None = None,
-    max_memory_mb: int = 512,
-    max_cpu_seconds: int = 60,
+    max_memory_mb: int | None = None,
+    max_cpu_seconds: int | None = None,
     stdin_data: bytes | None = None,
     capture_output: bool = True,
 ) -> SubprocessResult:
@@ -315,6 +315,22 @@ def safe_subprocess_sync(
 
     # Validate command is a list of strings
     cmd = [str(c) for c in cmd]
+    timeout, max_memory_mb, max_cpu_seconds = _resolve_security_limits(
+        timeout=timeout,
+        max_memory_mb=max_memory_mb,
+        max_cpu_seconds=max_cpu_seconds,
+    )
+
+    preflight_error = _preflight_external_tool(cmd[0])
+    if preflight_error:
+        return SubprocessResult(
+            stdout="",
+            stderr=preflight_error,
+            returncode=-1,
+            timed_out=False,
+            command=cmd,
+        )
+
     effective_cmd = _normalize_platform_command(cmd)
 
     # Build environment
@@ -386,11 +402,11 @@ def safe_subprocess_sync(
 async def safe_subprocess(
     cmd: list[str],
     *,
-    timeout: int = 60,
+    timeout: int | None = None,
     cwd: str | Path | None = None,
     env: dict[str, str] | None = None,
-    max_memory_mb: int = 512,
-    max_cpu_seconds: int = 60,
+    max_memory_mb: int | None = None,
+    max_cpu_seconds: int | None = None,
     stdin_data: bytes | None = None,
 ) -> SubprocessResult:
     """
@@ -416,11 +432,11 @@ async def safe_subprocess(
 async def safe_subprocess_streaming(
     cmd: list[str],
     *,
-    timeout: int = 60,
+    timeout: int | None = None,
     cwd: str | Path | None = None,
     env: dict[str, str] | None = None,
-    max_memory_mb: int = 512,
-    max_cpu_seconds: int = 60,
+    max_memory_mb: int | None = None,
+    max_cpu_seconds: int | None = None,
 ) -> AsyncGenerator[str, None]:
     """
     Execute a subprocess and yield stdout lines as they arrive.
@@ -431,6 +447,17 @@ async def safe_subprocess_streaming(
         raise ValueError("Empty command")
 
     cmd = [str(c) for c in cmd]
+    timeout, max_memory_mb, max_cpu_seconds = _resolve_security_limits(
+        timeout=timeout,
+        max_memory_mb=max_memory_mb,
+        max_cpu_seconds=max_cpu_seconds,
+    )
+
+    preflight_error = _preflight_external_tool(cmd[0])
+    if preflight_error:
+        yield f"[ERROR] {preflight_error}"
+        return
+
     effective_cmd = _normalize_platform_command(cmd)
 
     proc_env = os.environ.copy()
@@ -482,3 +509,54 @@ def get_security_config() -> SecurityConfig:
     from revula.config import get_config
 
     return get_config().security
+
+
+def _resolve_security_limits(
+    *,
+    timeout: int | None,
+    max_memory_mb: int | None,
+    max_cpu_seconds: int | None,
+) -> tuple[int, int, int]:
+    """Resolve subprocess security limits from explicit args or global security config."""
+    security = get_security_config()
+
+    effective_timeout = security.default_timeout if timeout is None else int(timeout)
+    if effective_timeout <= 0:
+        raise ValueError("timeout must be > 0")
+    effective_timeout = min(effective_timeout, security.max_timeout)
+
+    effective_memory = security.max_memory_mb if max_memory_mb is None else int(max_memory_mb)
+    if effective_memory <= 0:
+        raise ValueError("max_memory_mb must be > 0")
+
+    effective_cpu = effective_timeout if max_cpu_seconds is None else int(max_cpu_seconds)
+    if effective_cpu <= 0:
+        raise ValueError("max_cpu_seconds must be > 0")
+    effective_cpu = min(effective_cpu, security.max_timeout)
+
+    return effective_timeout, effective_memory, effective_cpu
+
+
+def _preflight_external_tool(command: str) -> str | None:
+    """Return a clear install hint when a known external tool is unavailable."""
+    # Explicit paths should proceed to normal subprocess execution.
+    command_path = Path(command)
+    if command_path.is_absolute() and command_path.exists():
+        return None
+
+    from revula.config import TOOL_BINARIES, get_config
+
+    config = get_config()
+    command_name = command_path.name.lower()
+    for tool_name, candidates in TOOL_BINARIES.items():
+        normalized_candidates = {Path(c).name.lower() for c in candidates}
+        if command_name not in normalized_candidates:
+            continue
+
+        info = config.tools.get(tool_name)
+        if info and not info.available:
+            hint = f" {info.install_hint}" if info.install_hint else ""
+            return f"Required external tool '{tool_name}' is not installed.{hint}"
+        break
+
+    return None
