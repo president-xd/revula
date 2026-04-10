@@ -233,6 +233,15 @@ if [ -f "DOCKER.md" ]; then
     fi
 fi
 
+if grep -q -- "--entrypoint python" DOCKER.md && \
+   grep -q -- "--entrypoint python" DOCKER-QUICKREF.md && \
+   grep -q -- "--entrypoint python" scripts/docker/test.sh; then
+    echo -e "${GREEN}[PASS]${NC} Docker smoke commands correctly override entrypoint"
+else
+    echo -e "${RED}[FAIL]${NC} Docker smoke commands should use --entrypoint for non-revula commands"
+    ERRORS=$((ERRORS + 1))
+fi
+
 echo ""
 echo "=========================================="
 echo "Validation Summary"
