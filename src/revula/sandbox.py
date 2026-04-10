@@ -159,14 +159,21 @@ def validate_path(
             f"Path traversal detected in: {path}. Use absolute paths."
         )
 
-    # Check allowed directories (fail-closed: if allowed_dirs is None or empty,
-    # default to get_config().security.allowed_dirs so we never skip the check)
+    # Check allowed directories (fail-closed).
+    # If no allowlist is provided, load config defaults; if that fails or resolves
+    # to an empty list, deny path access rather than silently allowing it.
     if not allowed_dirs:
         try:
             from revula.config import get_config
             allowed_dirs = get_config().security.allowed_dirs
-        except Exception:
-            pass  # If config unavailable, proceed without dir check
+        except Exception as e:
+            raise PathValidationError(
+                "Could not load allowed directories from config; refusing access."
+            ) from e
+    if not allowed_dirs:
+        raise PathValidationError(
+            "No allowed directories configured; refusing path access."
+        )
     if allowed_dirs:
         in_allowed = False
         for allowed in allowed_dirs:
