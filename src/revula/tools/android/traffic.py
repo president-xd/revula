@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
         "mitmproxy/Burp proxy settings."
     ),
     category="android",
+    requires_tools=["adb"],
     input_schema={
         "type": "object",
         "required": ["package_name", "action"],
