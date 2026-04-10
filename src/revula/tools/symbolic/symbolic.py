@@ -142,15 +142,15 @@ async def handle_angr_explore(arguments: dict[str, Any]) -> list[dict[str, Any]]
             stdin_data = found_state.posix.dumps(0)
             result["stdin"] = stdin_data.hex()
             result["stdin_ascii"] = stdin_data.decode("ascii", errors="replace")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Unable to extract concrete stdin from symbolic state: %s", e)
 
         # Try to get stdout
         try:
             stdout_data = found_state.posix.dumps(1)
             result["stdout"] = stdout_data.decode("ascii", errors="replace")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Unable to extract concrete stdout from symbolic state: %s", e)
 
         results.append(result)
 
