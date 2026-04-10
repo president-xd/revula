@@ -17,7 +17,7 @@ FROM python:3.12-slim-bookworm AS builder
 ENV DEBIAN_FRONTEND=noninteractive \
     GHIDRA_VERSION=11.0.1 \
     GHIDRA_DATE=20240130 \
-    GHIDRA_SHA256=c5f2d39bd1d4c7f8c82c0559b53f223b6b887db8e38a09f45b645e87fc2d6e1a \
+    GHIDRA_SHA256=a0bc9450aa3a231096b13a823c66311b9f84cb9cec4624393221cfed40ef6924 \
     APKTOOL_VERSION=2.10.0 \
     SMALI_VERSION=2.5.2 \
     GHIDRA_INSTALL_DIR=/opt/ghidra
@@ -62,9 +62,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     binutils \
     binutils-multiarch \
     binwalk \
-    upx-ucl \
-    radare2 \
-    rizin \
+    # radare2/rizin/upx are not available in bookworm default repos
     qemu-user \
     qemu-system \
     qemu-utils \
@@ -111,8 +109,8 @@ RUN cd /tmp && \
 # Install smali/baksmali wrappers
 RUN mkdir -p /opt/smali && \
     cd /opt/smali && \
-    wget -q -O smali.jar "https://github.com/JesusFreke/smali/releases/download/v${SMALI_VERSION}/smali-${SMALI_VERSION}.jar" && \
-    wget -q -O baksmali.jar "https://github.com/JesusFreke/smali/releases/download/v${SMALI_VERSION}/baksmali-${SMALI_VERSION}.jar" && \
+    wget -q -O smali.jar "https://repo.maven.apache.org/maven2/org/smali/smali/${SMALI_VERSION}/smali-${SMALI_VERSION}.jar" && \
+    wget -q -O baksmali.jar "https://repo.maven.apache.org/maven2/org/smali/baksmali/${SMALI_VERSION}/baksmali-${SMALI_VERSION}.jar" && \
     printf '#!/usr/bin/env bash\nexec java -jar /opt/smali/smali.jar \"$@\"\n' > /usr/local/bin/smali && \
     printf '#!/usr/bin/env bash\nexec java -jar /opt/smali/baksmali.jar \"$@\"\n' > /usr/local/bin/baksmali && \
     chmod +x /usr/local/bin/smali /usr/local/bin/baksmali
@@ -181,9 +179,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     binutils \
     binutils-multiarch \
     binwalk \
-    upx-ucl \
-    radare2 \
-    rizin \
+    # radare2/rizin/upx are not available in bookworm default repos
     qemu-user \
     qemu-system \
     qemu-utils \
