@@ -28,9 +28,9 @@ CACHE_DIR = CONFIG_DIR / "cache"
 
 # Environment variable overrides (key = env var, value = config path)
 ENV_OVERRIDES: dict[str, str] = {
-    "GHIDRA_PATH": "tools.ghidra.path",
-    "GHIDRA_HEADLESS": "tools.ghidra.headless_path",
-    "RETDEC_PATH": "tools.retdec.path",
+    "GHIDRA_PATH": "tools.ghidra_headless.path",
+    "GHIDRA_HEADLESS": "tools.ghidra_headless.path",
+    "RETDEC_PATH": "tools.retdec_decompiler.path",
     "RADARE2_PATH": "tools.radare2.path",
     "RIZIN_PATH": "tools.rizin.path",
     "GDB_PATH": "tools.gdb.path",
@@ -52,6 +52,7 @@ ENV_OVERRIDES: dict[str, str] = {
 # Tools to probe via shutil.which()
 TOOL_BINARIES: dict[str, list[str]] = {
     "ghidra_headless": ["analyzeHeadless", "analyzeHeadless.bat"],
+    "drrun": ["drrun", "drrun.exe"],
     "radare2": ["r2", "radare2"],
     "rizin": ["rizin", "rz"],
     "gdb": ["gdb"],
@@ -65,7 +66,27 @@ TOOL_BINARIES: dict[str, list[str]] = {
     "apktool": ["apktool"],
     "cfr": ["cfr"],
     "retdec_decompiler": ["retdec-decompiler", "retdec-decompiler.py"],
+    "aapt": ["aapt", "aapt2"],
+    "binwalk": ["binwalk"],
+    "capinfos": ["capinfos"],
+    "checksec": ["checksec"],
+    "curl": ["curl"],
+    "diec": ["diec"],
+    "file": ["file"],
+    "monodis": ["monodis"],
+    "msfvenom": ["msfvenom"],
+    "nm": ["nm", "llvm-nm"],
+    "one_gadget": ["one_gadget"],
+    "qemu_img": ["qemu-img"],
+    "readelf": ["readelf", "llvm-readelf"],
+    "tshark": ["tshark"],
     "pdbutil": ["llvm-pdbutil", "llvm-pdbutil-19", "llvm-pdbutil-18", "llvm-pdbutil-17"],
+}
+
+# Backward-compatible aliases for legacy config file key names.
+TOOL_OVERRIDE_ALIASES: dict[str, list[str]] = {
+    "ghidra_headless": ["ghidra"],
+    "retdec_decompiler": ["retdec"],
 }
 
 
@@ -144,6 +165,7 @@ class ToolNotAvailableError(Exception):
 
 INSTALL_HINTS: dict[str, str] = {
     "ghidra_headless": "Download Ghidra from https://ghidra-sre.org/ and add to PATH",
+    "drrun": "Install DynamoRIO and add drrun to PATH: https://dynamorio.org/",
     "radare2": "Install: https://github.com/radareorg/radare2 or `brew install radare2`",
     "rizin": "Install: https://rizin.re/ or `brew install rizin`",
     "gdb": "Install: `sudo apt install gdb` or `brew install gdb`",
@@ -157,6 +179,20 @@ INSTALL_HINTS: dict[str, str] = {
     "apktool": "Install: `brew install apktool` or download from https://ibotpeaches.github.io/Apktool/",
     "cfr": "Download from https://www.benf.org/other/cfr/",
     "retdec_decompiler": "Install from https://github.com/avast/retdec",
+    "aapt": "Install Android build-tools (aapt/aapt2) via Android SDK manager",
+    "binwalk": "Install: `pip install binwalk` or distro package `binwalk`",
+    "capinfos": "Install Wireshark tools: `sudo apt install wireshark-common`",
+    "checksec": "Install checksec: `sudo apt install checksec` or distro equivalent",
+    "curl": "Install curl: `sudo apt install curl`",
+    "diec": "Install Detect It Easy (DIE): https://github.com/horsicq/Detect-It-Easy",
+    "file": "Install file utility: `sudo apt install file`",
+    "monodis": "Install mono-utils: `sudo apt install mono-utils`",
+    "msfvenom": "Install Metasploit Framework (provides msfvenom)",
+    "nm": "Install binutils (nm): `sudo apt install binutils`",
+    "one_gadget": "Install one_gadget: `gem install one_gadget`",
+    "qemu_img": "Install qemu-utils: `sudo apt install qemu-utils`",
+    "readelf": "Install binutils (readelf): `sudo apt install binutils`",
+    "tshark": "Install tshark: `sudo apt install tshark`",
     "pdbutil": "Install LLVM: `sudo apt install llvm` or `brew install llvm`",
 }
 
@@ -212,21 +248,26 @@ def _resolve_nested(data: dict[str, Any], dotpath: str) -> Any | None:
 
 def _probe_tool(name: str, candidates: list[str], overrides: dict[str, Any]) -> ToolInfo:
     """Probe for a tool binary, checking overrides first."""
-    # Check config overrides
-    override_path = _resolve_nested(overrides, f"tools.{name}.path")
-    if override_path and isinstance(override_path, str):
-        resolved = Path(override_path).expanduser()
-        if resolved.exists() and os.access(str(resolved), os.X_OK):
-            return ToolInfo(
-                name=name,
-                available=True,
-                path=str(resolved),
-                install_hint=INSTALL_HINTS.get(name, ""),
-            )
+    # Check config overrides (including backward-compatible aliases)
+    override_keys = [f"tools.{name}.path"]
+    for legacy_name in TOOL_OVERRIDE_ALIASES.get(name, []):
+        override_keys.append(f"tools.{legacy_name}.path")
+
+    for override_key in override_keys:
+        override_path = _resolve_nested(overrides, override_key)
+        if override_path and isinstance(override_path, str):
+            resolved = Path(override_path).expanduser()
+            if resolved.exists() and os.access(str(resolved), os.X_OK):
+                return ToolInfo(
+                    name=name,
+                    available=True,
+                    path=str(resolved),
+                    install_hint=INSTALL_HINTS.get(name, ""),
+                )
 
     # Check env vars
     for env_var, config_path in ENV_OVERRIDES.items():
-        if config_path == f"tools.{name}.path":
+        if config_path in override_keys:
             env_val = os.environ.get(env_var)
             if env_val:
                 resolved = Path(env_val).expanduser()
