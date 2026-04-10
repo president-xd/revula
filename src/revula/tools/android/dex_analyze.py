@@ -146,8 +146,8 @@ def _extract_dex_strings(data: bytes) -> list[str]:
         try:
             s = data[pos:end].decode("utf-8", errors="replace")
             strings.append(s)
-        except Exception:
-            pass
+        except UnicodeDecodeError:
+            continue
 
     return strings
 
