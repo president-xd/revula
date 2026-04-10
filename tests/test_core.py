@@ -25,7 +25,7 @@ from revula.session import (
     FridaSession,
     SessionManager,
 )
-from revula.tools import TOOL_REGISTRY, ToolDefinition, error_result, text_result
+from revula.tools import TOOL_REGISTRY, ToolDefinition, ToolRegistry, error_result, text_result
 
 # ---------------------------------------------------------------------------
 # Config Tests
@@ -211,6 +211,114 @@ class TestToolRegistry:
         for cat in categories:
             cat_tools = TOOL_REGISTRY.by_category(cat)
             assert all(t.category == cat for t in cat_tools)
+
+    @pytest.mark.asyncio
+    async def test_execute_rejects_missing_required(self) -> None:
+        registry = ToolRegistry()
+        called = False
+
+        async def handler(args: dict[str, Any]) -> list[dict[str, Any]]:
+            nonlocal called
+            called = True
+            return text_result({"ok": True})
+
+        registry.register(
+            name="schema_required_test",
+            description="schema required test",
+            input_schema={
+                "type": "object",
+                "required": ["path"],
+                "properties": {"path": {"type": "string"}},
+                "additionalProperties": False,
+            },
+        )(handler)
+
+        result = await registry.execute("schema_required_test", {})
+        payload = json.loads(result[0]["text"])
+        assert payload["error"] is True
+        assert "Invalid arguments for tool 'schema_required_test'" in payload["message"]
+        assert "required property" in payload["message"]
+        assert not called
+
+    @pytest.mark.asyncio
+    async def test_execute_rejects_additional_properties(self) -> None:
+        registry = ToolRegistry()
+
+        async def handler(args: dict[str, Any]) -> list[dict[str, Any]]:
+            return text_result({"ok": True})
+
+        registry.register(
+            name="schema_additional_props_test",
+            description="schema additionalProperties test",
+            input_schema={
+                "type": "object",
+                "properties": {"path": {"type": "string"}},
+                "required": ["path"],
+                "additionalProperties": False,
+            },
+        )(handler)
+
+        result = await registry.execute(
+            "schema_additional_props_test",
+            {"path": "/tmp/a.bin", "extra": "blocked"},
+        )
+        payload = json.loads(result[0]["text"])
+        assert payload["error"] is True
+        assert "Invalid arguments for tool 'schema_additional_props_test'" in payload["message"]
+        assert "additional properties" in payload["message"].lower()
+
+    @pytest.mark.asyncio
+    async def test_execute_rejects_wrong_type(self) -> None:
+        registry = ToolRegistry()
+
+        async def handler(args: dict[str, Any]) -> list[dict[str, Any]]:
+            return text_result({"ok": True})
+
+        registry.register(
+            name="schema_type_test",
+            description="schema type test",
+            input_schema={
+                "type": "object",
+                "properties": {"count": {"type": "integer"}},
+                "required": ["count"],
+                "additionalProperties": False,
+            },
+        )(handler)
+
+        result = await registry.execute("schema_type_test", {"count": "not-an-int"})
+        payload = json.loads(result[0]["text"])
+        assert payload["error"] is True
+        assert "Invalid arguments for tool 'schema_type_test'" in payload["message"]
+        assert "is not of type 'integer'" in payload["message"]
+
+    @pytest.mark.asyncio
+    async def test_execute_allows_internal_runtime_arguments(self) -> None:
+        registry = ToolRegistry()
+        seen_path: str | None = None
+
+        async def handler(args: dict[str, Any]) -> list[dict[str, Any]]:
+            nonlocal seen_path
+            seen_path = args["path"]
+            return text_result({"ok": True})
+
+        registry.register(
+            name="schema_internal_args_test",
+            description="schema internal args test",
+            input_schema={
+                "type": "object",
+                "properties": {"path": {"type": "string"}},
+                "required": ["path"],
+                "additionalProperties": False,
+            },
+        )(handler)
+
+        result = await registry.execute(
+            "schema_internal_args_test",
+            {"path": "/tmp/test.bin", "__config__": object(), "__session_manager__": object()},
+        )
+        payload = json.loads(result[0]["text"])
+        assert payload["ok"] is True
+        assert seen_path == "/tmp/test.bin"
 
 
 # ---------------------------------------------------------------------------
