@@ -23,7 +23,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      target: builder
     image: revula:dev
     container_name: revula-dev
     stdin_open: true
@@ -38,7 +37,8 @@ services:
       - REVULA_MAX_MEMORY_MB=4096
       - REVULA_DEFAULT_TIMEOUT=600
     working_dir: /app
-    command: ["/bin/bash"]
+    entrypoint: ["/bin/bash"]
+    command: []
     profiles:
       - dev
 
