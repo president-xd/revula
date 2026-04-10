@@ -260,6 +260,7 @@ async def handle_gdb_rop(arguments: dict[str, Any]) -> list[dict[str, Any]]:
         "offset calculation, format string helpers."
     ),
     category="platform",
+    requires_tools=["gdb"],
     input_schema={
         "type": "object",
         "required": ["action"],
