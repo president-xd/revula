@@ -10,6 +10,7 @@ from __future__ import annotations
 import itertools
 import logging
 import re
+from binascii import Error as BinasciiError
 from typing import Any
 
 from revula.sandbox import validate_binary_path
@@ -48,13 +49,13 @@ def _base64_decode(data: str) -> bytes | None:
     try:
         # Standard base64
         return base64.b64decode(data)
-    except Exception:
-        pass
+    except (BinasciiError, ValueError):
+        logger.debug("Standard Base64 decode failed, trying URL-safe variant")
     try:
         # URL-safe
         return base64.urlsafe_b64decode(data)
-    except Exception:
-        pass
+    except (BinasciiError, ValueError):
+        logger.debug("URL-safe Base64 decode failed")
     return None
 
 
@@ -203,8 +204,8 @@ async def handle_deobfuscate_strings(arguments: dict[str, Any]) -> list[dict[str
                             "method": "base64",
                             "length": len(decoded_str),
                         })
-            except Exception:
-                pass
+            except (UnicodeDecodeError, BinasciiError, ValueError) as e:
+                logger.debug("Skipping invalid Base64 candidate at offset %s: %s", m.start(), e)
 
     # --- Stack strings ---
     if do_all or "stack_strings" in methods:
