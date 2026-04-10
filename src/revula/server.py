@@ -1,11 +1,11 @@
 """
-Revula Server — MCP entrypoint with stdio and SSE transport support.
+Revula Server — MCP entrypoint with stdio transport.
 
 This is the main entry point for the Revula server. It:
 - Initializes configuration and detects available tools
 - Starts the session manager
 - Registers all tool handlers from the tool modules
-- Serves via stdio (primary) or SSE (optional for remote access)
+- Serves via stdio transport
 """
 
 from __future__ import annotations
@@ -42,6 +42,18 @@ logging.basicConfig(
     stream=sys.stderr,  # MCP uses stdout for protocol, logs go to stderr
 )
 logger = logging.getLogger(__name__)
+SENSITIVE_ARG_MARKERS = (
+    "api_key",
+    "apikey",
+    "token",
+    "secret",
+    "password",
+    "passwd",
+    "keystore_pass",
+    "storepass",
+    "keypass",
+    "authorization",
+)
 
 # ---------------------------------------------------------------------------
 # MCP Server instance
@@ -223,7 +235,7 @@ def _is_error_result(result: list[dict[str, Any]]) -> bool:
             parsed = json.loads(first["text"])
             return bool(parsed.get("error"))
         except (json.JSONDecodeError, KeyError, TypeError):
-            pass
+            return False
     return False
 
 
@@ -269,9 +281,13 @@ async def read_resource(uri: str) -> bytes:
 
 def _truncate_args(args: dict[str, Any], max_len: int = 200) -> str:
     """Truncate arguments for logging (avoid logging huge binary data)."""
-    sanitized = {}
+    sanitized: dict[str, Any] = {}
     for k, v in args.items():
         if k.startswith("__"):
+            continue
+        key_lc = k.lower()
+        if any(marker in key_lc for marker in SENSITIVE_ARG_MARKERS):
+            sanitized[k] = "<redacted>"
             continue
         if isinstance(v, str) and len(v) > 100:
             sanitized[k] = v[:100] + "..."
