@@ -62,6 +62,7 @@ def _read_output_tree(output_dir: str, max_files: int = 200) -> dict[str, Any]:
         "Returns output directory path and file listing."
     ),
     category="android",
+    requires_tools=["jadx"],
     input_schema={
         "type": "object",
         "required": ["apk_path"],
@@ -102,10 +103,18 @@ async def handle_decompile(arguments: dict[str, Any]) -> list[dict[str, Any]]:
     file_path = validate_binary_path(apk_path, allowed_dirs=allowed_dirs)
 
     if output_dir:
-        out_path = Path(output_dir)
+        out_path = validate_path(
+            output_dir,
+            allowed_dirs=allowed_dirs,
+            must_exist=False,
+            path_kind="dir",
+        )
         out_path.mkdir(parents=True, exist_ok=True)
     else:
-        out_path = Path(tempfile.mkdtemp(prefix="revula_decompile_"))
+        base_dir = Path(allowed_dirs[0]).expanduser() if allowed_dirs else Path(tempfile.gettempdir())
+        out_path = Path(tempfile.mkdtemp(prefix="revula_decompile_", dir=str(base_dir)))
+        if allowed_dirs:
+            out_path = validate_path(str(out_path), allowed_dirs=allowed_dirs, path_kind="dir")
 
     # Try decompilers in order
     decompilers_to_try = (
@@ -188,8 +197,8 @@ async def handle_decompile(arguments: dict[str, Any]) -> list[dict[str, Any]]:
                     try:
                         content = Path(full).read_text(errors="replace")
                         sources.append({"path": rel, "source": content[:50000]})
-                    except Exception:
-                        pass
+                    except (OSError, UnicodeError) as e:
+                        logger.debug("Failed to read decompiled source %s: %s", full, e)
                     if len(sources) >= 50:
                         break
             if len(sources) >= 50:
@@ -211,6 +220,7 @@ async def handle_decompile(arguments: dict[str, Any]) -> list[dict[str, Any]]:
         "Returns output directory and file listing."
     ),
     category="android",
+    requires_tools=["baksmali"],
     input_schema={
         "type": "object",
         "required": ["input_path"],
@@ -247,10 +257,18 @@ async def handle_smali_disasm(arguments: dict[str, Any]) -> list[dict[str, Any]]
         )
 
     if output_dir:
-        out_path = Path(output_dir)
+        out_path = validate_path(
+            output_dir,
+            allowed_dirs=allowed_dirs,
+            must_exist=False,
+            path_kind="dir",
+        )
         out_path.mkdir(parents=True, exist_ok=True)
     else:
-        out_path = Path(tempfile.mkdtemp(prefix="revula_smali_"))
+        base_dir = Path(allowed_dirs[0]).expanduser() if allowed_dirs else Path(tempfile.gettempdir())
+        out_path = Path(tempfile.mkdtemp(prefix="revula_smali_", dir=str(base_dir)))
+        if allowed_dirs:
+            out_path = validate_path(str(out_path), allowed_dirs=allowed_dirs, path_kind="dir")
 
     cmd = [baksmali, "disassemble", str(file_path), "-o", str(out_path)]
     proc = await safe_subprocess(cmd, timeout=120)
@@ -286,6 +304,7 @@ async def handle_smali_disasm(arguments: dict[str, Any]) -> list[dict[str, Any]]
         "Assemble Smali files back to a DEX file using smali."
     ),
     category="android",
+    requires_tools=["smali"],
     input_schema={
         "type": "object",
         "required": ["smali_dir"],
@@ -315,16 +334,23 @@ async def handle_smali_assemble(arguments: dict[str, Any]) -> list[dict[str, Any
 
     if not output_dex:
         output_dex = str(dir_path / "out.dex")
+    output_path = validate_path(
+        output_dex,
+        allowed_dirs=allowed_dirs,
+        must_exist=False,
+        path_kind="file",
+    )
+    output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    cmd = [smali_tool, "assemble", str(dir_path), "-o", output_dex]
+    cmd = [smali_tool, "assemble", str(dir_path), "-o", str(output_path)]
     proc = await safe_subprocess(cmd, timeout=120)
 
     if proc.returncode != 0:
         return error_result(f"smali assemble failed (rc={proc.returncode}): {proc.stderr}")
 
     return text_result({
-        "output_dex": output_dex,
-        "size": os.path.getsize(output_dex),
+        "output_dex": str(output_path),
+        "size": os.path.getsize(output_path),
         "message": "DEX assembled successfully",
     })
 
