@@ -12,6 +12,7 @@ Performs comprehensive validation of the Revula installation:
 Usage:
     python scripts/test/validate_install.py
 """
+
 from __future__ import annotations
 
 import importlib
@@ -29,9 +30,11 @@ from pathlib import Path
 # Result tracking
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class CheckResult:
     """Result of a single validation check."""
+
     name: str
     category: str
     passed: bool
@@ -42,6 +45,7 @@ class CheckResult:
 @dataclass
 class ValidationReport:
     """Aggregated validation results."""
+
     results: list[CheckResult] = field(default_factory=list)
 
     def add(self, result: CheckResult) -> None:
@@ -72,22 +76,28 @@ class ValidationReport:
 # Color helpers
 # ---------------------------------------------------------------------------
 
+
 def _color(code: str, text: str) -> str:
     if sys.stdout.isatty():
         return f"\033[{code}m{text}\033[0m"
     return text
 
+
 def _pass(text: str) -> str:
     return _color("32", f"✓ {text}")
+
 
 def _fail(text: str) -> str:
     return _color("31", f"✗ {text}")
 
+
 def _skip(text: str) -> str:
     return _color("33", f"– {text}")
 
+
 def _bold(text: str) -> str:
     return _color("1", text)
+
 
 def _section(title: str) -> None:
     print()
@@ -98,33 +108,34 @@ def _section(title: str) -> None:
 # Check: Python module imports
 # ---------------------------------------------------------------------------
 
+
 def check_python_imports(report: ValidationReport) -> None:
     """Test that key Python modules are importable."""
     _section("Python Module Imports")
 
     required_modules = [
-        ("capstone",   "capstone",     True),
-        ("lief",       "lief",         True),
-        ("pefile",     "pefile",       True),
-        ("pyelftools", "elftools",     True),
-        ("yara",       "yara",         True),
-        ("mcp",        "mcp",          True),
-        ("jsonschema", "jsonschema",   True),
+        ("capstone", "capstone", True),
+        ("lief", "lief", True),
+        ("pefile", "pefile", True),
+        ("pyelftools", "elftools", True),
+        ("yara", "yara", True),
+        ("mcp", "mcp", True),
+        ("jsonschema", "jsonschema", True),
     ]
     optional_modules = [
-        ("frida",       "frida",          False),
-        ("angr",        "angr",           False),
-        ("unicorn",     "unicorn",        False),
-        ("lldb",        "lldb",           False),
-        ("r2pipe",      "r2pipe",         False),
-        ("scapy",       "scapy.all",      False),
-        ("androguard",  "androguard",     False),
-        ("tlsh",        "tlsh",           False),
-        ("ssdeep",      "ssdeep|ppdeep",  False),
-        ("uncompyle6",  "uncompyle6",     False),
-        ("triton",      "triton",         False),
-        ("quark",       "quark",          False),
-        ("semgrep",     "semgrep",        False),
+        ("frida", "frida", False),
+        ("angr", "angr", False),
+        ("unicorn", "unicorn", False),
+        ("lldb", "lldb", False),
+        ("r2pipe", "r2pipe", False),
+        ("scapy", "scapy.all", False),
+        ("androguard", "androguard", False),
+        ("tlsh", "tlsh", False),
+        ("ssdeep", "ssdeep|ppdeep", False),
+        ("uncompyle6", "uncompyle6", False),
+        ("triton", "triton", False),
+        ("quark", "quark", False),
+        ("semgrep", "semgrep", False),
     ]
 
     for display_name, import_name, required in required_modules + optional_modules:
@@ -172,46 +183,60 @@ def check_python_imports(report: ValidationReport) -> None:
 # Check: External tools
 # ---------------------------------------------------------------------------
 
+
 def check_external_tools(report: ValidationReport) -> None:
     """Verify external tool binaries are available."""
     _section("External Tools")
 
     tools = [
-        ("gdb",              ["gdb"],                      True),
-        ("radare2",          ["r2", "radare2"],             False),
-        ("objdump",          ["objdump"],                   True),
-        ("strings",          ["strings"],                   True),
-        ("checksec",         ["checksec"],                  False),
-        ("adb",              ["adb"],                       False),
-        ("aapt",             ["aapt", "aapt2"],             False),
-        ("apksigner",        ["apksigner"],                 False),
-        ("jadx",             ["jadx"],                      False),
-        ("apktool",          ["apktool"],                   False),
-        ("baksmali",         ["baksmali"],                  False),
-        ("smali",            ["smali"],                     False),
-        ("cfr",              ["cfr"],                       False),
-        ("ghidra headless",  ["analyzeHeadless"],           False),
-        ("binwalk",          ["binwalk"],                   False),
-        ("diec",             ["diec"],                      False),
-        ("upx",              ["upx"],                       False),
-        ("capa",             ["capa"],                      False),
-        ("retdec_decompiler", ["retdec-decompiler"],        False),
-        ("rizin",            ["rizin", "rz"],               False),
-        ("rz-diff",          ["rz-diff"],                   False),
-        ("lldb",             ["lldb"],                      False),
-        ("qemu user",        ["qemu-x86_64", "qemu-arm"],   False),
-        ("qemu system",      ["qemu-system-x86_64"],        False),
-        ("qemu-img",         ["qemu-img"],                  False),
-        ("tshark/capinfos",  ["tshark", "capinfos"],        False),
-        ("drrun",            ["drrun"],                     False),
-        ("ikdasm",           ["ikdasm", "ildasm"],          False),
-        ("monodis",          ["monodis"],                   False),
-        ("msfvenom",         ["msfvenom"],                  False),
-        ("one_gadget",       ["one_gadget"],                False),
-        ("semgrep",          ["semgrep"],                   False),
-        ("quark",            ["quark"],                     False),
-        ("wasm2wat",         ["wasm2wat"],                  False),
-        ("pdbutil",          ["llvm-pdbutil", "llvm-pdbutil-19", "llvm-pdbutil-18", "llvm-pdbutil-17"], False),
+        ("gdb", ["gdb"], True),
+        ("radare2", ["r2", "radare2"], False),
+        ("objdump", ["objdump"], True),
+        ("strings", ["strings"], True),
+        ("checksec", ["checksec"], False),
+        ("adb", ["adb"], False),
+        ("aapt", ["aapt", "aapt2"], False),
+        ("apksigner", ["apksigner"], False),
+        ("jadx", ["jadx"], False),
+        ("apktool", ["apktool"], False),
+        ("baksmali", ["baksmali"], False),
+        ("smali", ["smali"], False),
+        ("cfr", ["cfr"], False),
+        ("ghidra headless", ["analyzeHeadless"], False),
+        ("binwalk", ["binwalk"], False),
+        ("diec", ["diec"], False),
+        ("upx", ["upx"], False),
+        ("capa", ["capa"], False),
+        ("retdec_decompiler", ["retdec-decompiler"], False),
+        ("rizin", ["rizin", "rz"], False),
+        ("rz-diff", ["rz-diff"], False),
+        ("lldb", ["lldb"], False),
+        ("qemu user", ["qemu-x86_64", "qemu-arm"], False),
+        ("qemu system", ["qemu-system-x86_64"], False),
+        ("qemu-img", ["qemu-img"], False),
+        ("tshark/capinfos", ["tshark", "capinfos"], False),
+        ("drrun", ["drrun"], False),
+        ("ikdasm", ["ikdasm", "ildasm"], False),
+        ("monodis", ["monodis"], False),
+        ("msfvenom", ["msfvenom"], False),
+        ("one_gadget", ["one_gadget"], False),
+        ("semgrep", ["semgrep"], False),
+        ("quark", ["quark"], False),
+        ("wasm2wat", ["wasm2wat"], False),
+        (
+            "pdbutil",
+            [
+                "llvm-pdbutil",
+                "llvm-pdbutil-20",
+                "llvm-pdbutil-19",
+                "llvm-pdbutil-18",
+                "llvm-pdbutil-17",
+                "llvm-pdbutil-16",
+                "llvm-pdbutil-15",
+                "llvm-pdbutil-14",
+            ],
+            False,
+        ),
     ]
 
     for display_name, candidates, required in tools:
@@ -247,12 +272,14 @@ def check_external_tools(report: ValidationReport) -> None:
 # Check: Config loading
 # ---------------------------------------------------------------------------
 
+
 def check_config_loading(report: ValidationReport) -> None:
     """Test that Revula config loads without errors."""
     _section("Configuration")
 
     try:
         from revula.config import load_config
+
         config = load_config()
 
         result = CheckResult(
@@ -299,6 +326,7 @@ def check_config_loading(report: ValidationReport) -> None:
 # ---------------------------------------------------------------------------
 # Check: Path traversal rejection
 # ---------------------------------------------------------------------------
+
 
 def check_path_traversal(report: ValidationReport) -> None:
     """Test that path traversal attacks are blocked."""
@@ -391,6 +419,7 @@ def check_path_traversal(report: ValidationReport) -> None:
 # Check: safe_subprocess safety
 # ---------------------------------------------------------------------------
 
+
 def check_subprocess_safety(report: ValidationReport) -> None:
     """Test that safe_subprocess blocks shell injection patterns."""
     _section("Security: Subprocess Safety")
@@ -458,17 +487,20 @@ def check_subprocess_safety(report: ValidationReport) -> None:
         safe = False
         print(f"  {_fail(f'Subprocess test error: {e}')}")
 
-    report.add(CheckResult(
-        name="subprocess safety",
-        category="security",
-        passed=safe,
-        required=True,
-    ))
+    report.add(
+        CheckResult(
+            name="subprocess safety",
+            category="security",
+            passed=safe,
+            required=True,
+        )
+    )
 
 
 # ---------------------------------------------------------------------------
 # Check: Revula tool registry
 # ---------------------------------------------------------------------------
+
 
 def check_tool_registry(report: ValidationReport) -> None:
     """Test that the tool registry loads and has tools."""
@@ -481,6 +513,7 @@ def check_tool_registry(report: ValidationReport) -> None:
         # Force registration
         try:
             from revula.server import _register_all_tools
+
             _register_all_tools()
         except Exception as e:
             print(f"  [WARN] Tool auto-registration failed: {e}")
@@ -510,19 +543,22 @@ def check_tool_registry(report: ValidationReport) -> None:
             print(f"  {_fail('No tools registered')}")
 
     except Exception as e:
-        report.add(CheckResult(
-            name="tool registry",
-            category="registry",
-            passed=False,
-            detail=str(e),
-            required=True,
-        ))
+        report.add(
+            CheckResult(
+                name="tool registry",
+                category="registry",
+                passed=False,
+                detail=str(e),
+                required=True,
+            )
+        )
         print(f"  {_fail(f'Registry error: {e}')}")
 
 
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
+
 
 def main() -> None:
     print()
@@ -548,10 +584,12 @@ def main() -> None:
 
     print()
     print("══════════════════════════════════════════════════════")
-    print(f"  {_color('32', f'Passed: {report.passed}')}  |  "
-          f"{_color('31', f'Failed: {report.failed}')}  |  "
-          f"{_color('33', f'Skipped: {report.skipped}')}  |  "
-          f"Total: {report.total}")
+    print(
+        f"  {_color('32', f'Passed: {report.passed}')}  |  "
+        f"{_color('31', f'Failed: {report.failed}')}  |  "
+        f"{_color('33', f'Skipped: {report.skipped}')}  |  "
+        f"Total: {report.total}"
+    )
     print("══════════════════════════════════════════════════════")
 
     if report.all_required_pass:
