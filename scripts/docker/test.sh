@@ -38,28 +38,28 @@ echo ""
 echo "=========================================="
 echo "Test 1: Package import and version"
 echo "=========================================="
-docker run --rm revula:latest python -c "import revula; print(revula.__version__)"
+docker run --rm --entrypoint python revula:latest -c "import revula; print(revula.__version__)"
 echo -e "${GREEN}Test 1 passed${NC}"
 echo ""
 
 echo "=========================================="
 echo "Test 2: Tool registry loads"
 echo "=========================================="
-docker run --rm revula:latest python -c "from revula.server import _register_all_tools; from revula.tools import TOOL_REGISTRY; _register_all_tools(); print(TOOL_REGISTRY.count())"
+docker run --rm --entrypoint python revula:latest -c "from revula.server import _register_all_tools; from revula.tools import TOOL_REGISTRY; _register_all_tools(); print(TOOL_REGISTRY.count())"
 echo -e "${GREEN}Test 2 passed${NC}"
 echo ""
 
 echo "=========================================="
 echo "Test 3: Availability report command"
 echo "=========================================="
-docker run --rm revula:latest python -c "from revula.config import get_config, format_availability_report; print(format_availability_report(get_config()))" | head -40
+docker run --rm --entrypoint python revula:latest -c "from revula.config import get_config, format_availability_report; print(format_availability_report(get_config()))" | head -40
 echo -e "${GREEN}Test 3 passed${NC}"
 echo ""
 
 echo "=========================================="
 echo "Test 4: Core Python dependencies"
 echo "=========================================="
-docker run --rm revula:latest python -c "
+docker run --rm --entrypoint python revula:latest -c "
 import capstone
 import lief
 import pefile
@@ -72,12 +72,61 @@ echo -e "${GREEN}Test 4 passed${NC}"
 echo ""
 
 echo "=========================================="
-echo "Test 5: Core external binaries"
+echo "Test 5: External tool coverage"
 echo "=========================================="
-docker run --rm revula:latest gdb --version | head -1
-docker run --rm revula:latest r2 -v 2>&1 | head -1
-docker run --rm revula:latest analyzeHeadless -help | head -3
-docker run --rm revula:latest qemu-img --version | head -1
+docker run --rm --entrypoint python revula:latest - <<'PY'
+import shutil
+import sys
+
+checks = {
+    "gdb": ["gdb"],
+    "radare2": ["r2", "radare2"],
+    "rizin": ["rizin"],
+    "rz_diff": ["rz-diff"],
+    "ghidra_headless": ["analyzeHeadless"],
+    "upx": ["upx"],
+    "retdec_decompiler": ["retdec-decompiler"],
+    "drrun": ["drrun"],
+    "msfvenom": ["msfvenom"],
+    "one_gadget": ["one_gadget"],
+    "checksec": ["checksec"],
+    "diec": ["diec"],
+    "apksigner": ["apksigner"],
+    "monodis": ["monodis"],
+    "ikdasm": ["ikdasm", "ildasm"],
+    "pdbutil": [
+        "llvm-pdbutil",
+        "llvm-pdbutil-20",
+        "llvm-pdbutil-19",
+        "llvm-pdbutil-18",
+        "llvm-pdbutil-17",
+        "llvm-pdbutil-16",
+        "llvm-pdbutil-15",
+        "llvm-pdbutil-14",
+    ],
+    "cfr": ["cfr"],
+    "qemu-img": ["qemu-img"],
+}
+
+missing = {}
+for label, candidates in checks.items():
+    resolved = None
+    for candidate in candidates:
+        path = shutil.which(candidate)
+        if path:
+            resolved = path
+            break
+    if not resolved:
+        missing[label] = candidates
+    else:
+        print(f"{label}: {resolved}")
+
+if missing:
+    print("Missing tools detected:")
+    for label, candidates in missing.items():
+        print(f"  - {label}: tried {', '.join(candidates)}")
+    sys.exit(1)
+PY
 echo -e "${GREEN}Test 5 passed${NC}"
 echo ""
 
@@ -96,5 +145,5 @@ echo "  2. docker compose stdio profile:"
 echo "     docker compose --profile stdio run --rm revula-stdio"
 echo ""
 echo "  3. Interactive shell:"
-echo "     docker run -it --rm revula:latest /bin/bash"
+echo "     docker run -it --rm --entrypoint /bin/bash revula:latest"
 echo ""
