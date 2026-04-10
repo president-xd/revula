@@ -391,9 +391,26 @@ class TestVulnerabilityHardeningV3:
             temp_path = tf.name
         try:
             # With allowed_dirs=None, it should fall back to config defaults
-            # which default to ["/"], so this should pass
+            # (home + temp dirs by default), so this should pass.
             result = validate_path(temp_path, allowed_dirs=None, must_exist=True)
             assert result.exists()
+        finally:
+            os.unlink(temp_path)
+
+    def test_validate_path_failclosed_when_config_load_fails(
+        self, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """validate_path should deny access if config allowlist loading fails."""
+        with tempfile.NamedTemporaryFile(suffix=".bin", delete=False) as tf:
+            tf.write(b"\x00" * 16)
+            temp_path = tf.name
+        try:
+            def _boom() -> object:
+                raise RuntimeError("config unavailable")
+
+            monkeypatch.setattr("revula.config.get_config", _boom)
+            with pytest.raises(PathValidationError):
+                validate_path(temp_path, allowed_dirs=None, must_exist=True)
         finally:
             os.unlink(temp_path)
 
