@@ -59,7 +59,7 @@ def detect_frida_version() -> str:
         import frida  # type: ignore[import-untyped]
         return frida.__version__
     except ImportError:
-        pass
+        info("frida module not importable; falling back to pip metadata lookup")
 
     # Fallback: try pip show
     try:
@@ -70,8 +70,8 @@ def detect_frida_version() -> str:
         for line in result.stdout.splitlines():
             if line.startswith("Version:"):
                 return line.split(":", 1)[1].strip()
-    except Exception:
-        pass
+    except Exception as e:
+        warn(f"Unable to query frida version via pip: {e}")
 
     return ""
 
@@ -84,8 +84,8 @@ def decompress_xz(xz_path: Path, output_path: Path) -> bool:
             with open(output_path, "wb") as f_out:
                 shutil.copyfileobj(f_in, f_out)
         return True
-    except Exception:
-        pass
+    except Exception as e:
+        warn(f"Python lzma decompression failed, trying xz binary: {e}")
 
     # Fallback to xz command
     if shutil.which("xz"):
@@ -95,8 +95,8 @@ def decompress_xz(xz_path: Path, output_path: Path) -> bool:
             shutil.copy2(xz_path, temp_xz)
             subprocess.run(["xz", "-d", "-f", str(temp_xz)], check=True, timeout=60)
             return output_path.exists()
-        except Exception:
-            pass
+        except Exception as e:
+            warn(f"xz decompression failed: {e}")
 
     return False
 
