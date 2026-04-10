@@ -52,6 +52,7 @@ async def _adb_cmd(
         "install/uninstall apps, push/pull files, start Frida server, logcat."
     ),
     category="android",
+    requires_tools=["adb"],
     input_schema={
         "type": "object",
         "required": ["action"],
