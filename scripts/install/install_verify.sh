@@ -53,15 +53,24 @@ check_python_module() {
     local module="$1"
     local import_name="${2:-$1}"
     local required="${3:-true}"
+    local found_import=""
+    local ver=""
 
-    if python3 -c "import ${import_name}" 2>/dev/null; then
-        local ver
+    IFS='|' read -r -a imports <<< "$import_name"
+    for mod in "${imports[@]}"; do
+        if python3 -c "import ${mod}" 2>/dev/null; then
+            found_import="$mod"
+            break
+        fi
+    done
+
+    if [[ -n "$found_import" ]]; then
         ver="$(python3 -c "
-import ${import_name}
-v = getattr(${import_name}, '__version__', getattr(${import_name}, 'VERSION', '?'))
+import ${found_import}
+v = getattr(${found_import}, '__version__', getattr(${found_import}, 'VERSION', '?'))
 print(v)
 " 2>/dev/null || echo '?')"
-        pass "Python: ${module}  →  v${ver}"
+        pass "Python: ${module}  →  ${found_import} v${ver}"
     else
         if [[ "$required" == "true" ]]; then
             fail "Python: ${module}  →  NOT IMPORTABLE"
@@ -121,6 +130,7 @@ check_python_module "pefile"      "pefile"     "true"
 check_python_module "pyelftools"  "elftools"   "true"
 check_python_module "yara-python" "yara"       "true"
 check_python_module "mcp"         "mcp"        "true"
+check_python_module "jsonschema"  "jsonschema" "true"
 echo ""
 
 echo -e "${BOLD}Optional Python Modules${NC}"
@@ -131,9 +141,11 @@ check_python_module "r2pipe"      "r2pipe"     "false"
 check_python_module "scapy"       "scapy"      "false"
 check_python_module "androguard"  "androguard" "false"
 check_python_module "tlsh"        "tlsh"       "false"
-check_python_module "ssdeep"      "ssdeep"     "false"
+check_python_module "ssdeep"      "ssdeep|ppdeep" "false"
 check_python_module "uncompyle6"  "uncompyle6" "false"
 check_python_module "triton"      "triton"     "false"
+check_python_module "quark-engine" "quark"     "false"
+check_python_module "semgrep"     "semgrep"    "false"
 echo ""
 
 echo -e "${BOLD}System Tools — Core${NC}"
@@ -144,6 +156,7 @@ check_command "strings"    "true"
 check_command "r2"         "false"
 check_command "rizin"      "false"
 check_command "lldb"       "false"
+check_command "checksec"   "false"
 echo ""
 
 echo -e "${BOLD}System Tools — Optional${NC}"
@@ -152,10 +165,19 @@ check_command "binwalk"         "false"
 check_command "upx"             "false"
 check_command "qemu-x86_64"    "false"
 check_command "qemu-arm"       "false"
+check_command "qemu-system-x86_64" "false"
+check_command "qemu-img"       "false"
 check_command "tshark"          "false"
+check_command "capinfos"        "false"
 check_command "wasm2wat"        "false"
 check_command "capa"            "false"
 check_command "floss"           "false"
+check_command "drrun"           "false"
+check_command "msfvenom"        "false"
+check_command "one_gadget"      "false"
+check_command "monodis"         "false"
+check_command "semgrep"         "false"
+check_command "quark"           "false"
 echo ""
 
 echo -e "${BOLD}Android RE Tools${NC}"
