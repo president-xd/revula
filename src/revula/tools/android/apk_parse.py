@@ -195,8 +195,8 @@ def _get_intent_filters(apk: Any, component_type: str, name: str) -> list[dict[s
                 for category in filters.get("category", []):
                     result.append({"category": category})
             return result
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("Failed to read intent filters for %s (%s): %s", component_type, name, e)
     return []
 
 
@@ -224,8 +224,8 @@ def _analyze_native_libs(apk_path: str) -> list[dict[str, Any]]:
                         ]:
                             if pattern in text.lower():
                                 suspicious.append(pattern)
-                    except Exception:
-                        pass
+                    except UnicodeDecodeError:
+                        continue
 
                     native_libs.append({
                         "name": os.path.basename(entry),
@@ -701,8 +701,8 @@ async def handle_resources(arguments: dict[str, Any]) -> list[dict[str, Any]]:
                                         "name": str(entry_config),
                                         "lang": locale or "default",
                                     })
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Failed to extract Android string resources: %s", e)
         result["strings"] = string_resources[:1000]  # Cap at 1000
     except ImportError:
         result["strings"] = []
