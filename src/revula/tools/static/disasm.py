@@ -50,8 +50,8 @@ def _init_capstone_map() -> None:
             "ppc": (cs.CS_ARCH_PPC, cs.CS_MODE_32 | cs.CS_MODE_BIG_ENDIAN),
             "ppc64": (cs.CS_ARCH_PPC, cs.CS_MODE_64 | cs.CS_MODE_BIG_ENDIAN),
         }
-    except ImportError:
-        pass
+    except ImportError as e:
+        logger.debug("Capstone initialization skipped: %s", e)
 
 
 _init_capstone_map()
@@ -171,8 +171,8 @@ def _disasm_capstone(
                 entry["comment"] = "JUMP"
             elif cs.CS_GRP_INT in insn.groups:
                 entry["comment"] = "INTERRUPT"
-        except AttributeError:
-            pass  # No detail info available
+        except AttributeError as e:
+            logger.debug("Instruction group metadata unavailable for %s: %s", insn.mnemonic, e)
 
         instructions.append(entry)
 
