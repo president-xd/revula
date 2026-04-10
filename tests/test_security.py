@@ -407,6 +407,18 @@ class TestVulnerabilityHardeningV3:
         # Clean string should pass through unchanged
         assert _js_escape("clean_string_123") == "clean_string_123"
 
+    def test_android_frida_no_blocking_sleep_in_async_handlers(self) -> None:
+        """Android Frida handlers should avoid blocking time.sleep()."""
+        src_file = Path(__file__).parent.parent / "src" / "revula" / "tools" / "android" / "frida_android.py"
+        text = src_file.read_text(encoding="utf-8")
+        assert "time.sleep(" not in text
+
+    def test_android_frida_session_handle_persisted(self) -> None:
+        """Frida session objects should retain live frida_session handles for cleanup."""
+        src_file = Path(__file__).parent.parent / "src" / "revula" / "tools" / "android" / "frida_android.py"
+        text = src_file.read_text(encoding="utf-8")
+        assert text.count("frida_session=session") >= 2
+
     def test_shellcode_emulate_no_injection(self) -> None:
         """Shellcode emulator should reject non-hex input."""
         # Read the shellcode.py file and verify it validates hex input
