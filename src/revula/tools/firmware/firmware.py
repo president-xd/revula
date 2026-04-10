@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
         "component identification, entropy visualization."
     ),
     category="firmware",
+    requires_tools=["binwalk"],
     input_schema={
         "type": "object",
         "required": ["firmware_path", "action"],
@@ -168,6 +169,7 @@ async def handle_firmware_extract(
         "known CVEs, unsafe functions, exposed services."
     ),
     category="firmware",
+    requires_tools=["strings"],
     input_schema={
         "type": "object",
         "required": ["firmware_path"],
@@ -238,6 +240,7 @@ async def handle_firmware_vuln(
         "function prologue scanning, and pattern matching."
     ),
     category="firmware",
+    requires_tools=["strings"],
     input_schema={
         "type": "object",
         "required": ["firmware_path"],
