@@ -19,6 +19,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     GHIDRA_DATE=20240130 \
     GHIDRA_SHA256=c5f2d39bd1d4c7f8c82c0559b53f223b6b887db8e38a09f45b645e87fc2d6e1a \
     APKTOOL_VERSION=2.10.0 \
+    SMALI_VERSION=2.5.2 \
     GHIDRA_INSTALL_DIR=/opt/ghidra
 
 # Install build dependencies and all RE tools
@@ -67,6 +68,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     qemu-user \
     qemu-system \
     qemu-utils \
+    wabt \
     # Android tools
     adb \
     aapt \
@@ -105,6 +107,15 @@ RUN cd /tmp && \
     chmod +x /opt/jadx/bin/jadx && \
     ln -s /opt/jadx/bin/jadx /usr/local/bin/jadx && \
     rm jadx-1.5.0.zip
+
+# Install smali/baksmali wrappers
+RUN mkdir -p /opt/smali && \
+    cd /opt/smali && \
+    wget -q -O smali.jar "https://github.com/JesusFreke/smali/releases/download/v${SMALI_VERSION}/smali-${SMALI_VERSION}.jar" && \
+    wget -q -O baksmali.jar "https://github.com/JesusFreke/smali/releases/download/v${SMALI_VERSION}/baksmali-${SMALI_VERSION}.jar" && \
+    printf '#!/usr/bin/env bash\nexec java -jar /opt/smali/smali.jar \"$@\"\n' > /usr/local/bin/smali && \
+    printf '#!/usr/bin/env bash\nexec java -jar /opt/smali/baksmali.jar \"$@\"\n' > /usr/local/bin/baksmali && \
+    chmod +x /usr/local/bin/smali /usr/local/bin/baksmali
 
 # Create virtual environment for Python packages
 RUN python -m venv /opt/venv
@@ -176,6 +187,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     qemu-user \
     qemu-system \
     qemu-utils \
+    wabt \
     # Android tools
     adb \
     aapt \
@@ -202,6 +214,11 @@ COPY --from=builder /opt/ghidra /opt/ghidra
 
 # Copy jadx from builder
 COPY --from=builder /opt/jadx /opt/jadx
+
+# Copy smali tools from builder
+COPY --from=builder /opt/smali /opt/smali
+COPY --from=builder /usr/local/bin/smali /usr/local/bin/smali
+COPY --from=builder /usr/local/bin/baksmali /usr/local/bin/baksmali
 
 # Copy apktool from builder
 COPY --from=builder /usr/local/bin/apktool /usr/local/bin/apktool
