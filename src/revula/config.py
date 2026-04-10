@@ -40,6 +40,7 @@ def _default_allowed_dirs() -> list[str]:
             deduped.append(candidate_str)
     return deduped
 
+
 # Environment variable overrides (key = env var, value = config path)
 ENV_OVERRIDES: dict[str, str] = {
     "AAPT_PATH": "tools.aapt.path",
@@ -158,7 +159,16 @@ TOOL_BINARIES: dict[str, list[str]] = {
     "smali": ["smali"],
     "tshark": ["tshark"],
     "wasm2wat": ["wasm2wat"],
-    "pdbutil": ["llvm-pdbutil", "llvm-pdbutil-19", "llvm-pdbutil-18", "llvm-pdbutil-17"],
+    "pdbutil": [
+        "llvm-pdbutil",
+        "llvm-pdbutil-20",
+        "llvm-pdbutil-19",
+        "llvm-pdbutil-18",
+        "llvm-pdbutil-17",
+        "llvm-pdbutil-16",
+        "llvm-pdbutil-15",
+        "llvm-pdbutil-14",
+    ],
 }
 
 # Backward-compatible aliases for legacy config file key names.
@@ -571,11 +581,13 @@ def format_availability_report(config: ServerConfig) -> str:
             path_str = "..." + path_str[-35:]
         lines.append(f"║  {status} {name:<20} {path_str:<30} ║")
 
-    lines.extend([
-        "╠══════════════════════════════════════════════════════╣",
-        "║  PYTHON MODULES                                      ║",
-        "╠══════════════════════════════════════════════════════╣",
-    ])
+    lines.extend(
+        [
+            "╠══════════════════════════════════════════════════════╣",
+            "║  PYTHON MODULES                                      ║",
+            "╠══════════════════════════════════════════════════════╣",
+        ]
+    )
 
     for mod_name, available in sorted(config.python_modules.items()):
         status = "✓" if available else "✗"
