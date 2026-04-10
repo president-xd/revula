@@ -232,7 +232,8 @@ RUN set -eux; \
     ln -sf /opt/rizin/bin/rz-diff /usr/local/bin/rz-diff; \
     curl -fsSL -o /tmp/dynamorio.tar.gz "https://github.com/DynamoRIO/dynamorio/releases/download/cronbuild-${DYNAMORIO_VERSION}/DynamoRIO-Linux-${DYNAMORIO_VERSION}.tar.gz"; \
     tar -xzf /tmp/dynamorio.tar.gz -C /opt/dynamorio --strip-components=1; \
-    ln -sf /opt/dynamorio/bin64/drrun /usr/local/bin/drrun; \
+    printf '#!/usr/bin/env bash\nexec /opt/dynamorio/bin64/drrun "$@"\n' > /usr/local/bin/drrun; \
+    chmod +x /usr/local/bin/drrun; \
     curl -fsSL -o /tmp/upx.tar.xz "https://github.com/upx/upx/releases/download/v${UPX_VERSION}/upx-${UPX_VERSION}-amd64_linux.tar.xz"; \
     tar -xf /tmp/upx.tar.xz -C /opt/upx; \
     ln -sf /opt/upx/upx-${UPX_VERSION}-amd64_linux/upx /usr/local/bin/upx; \
