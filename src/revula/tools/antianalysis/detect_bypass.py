@@ -95,6 +95,7 @@ _TAMPER_PATTERNS: list[dict[str, str]] = [
         "in a binary. Scans imports, strings, code patterns."
     ),
     category="antianalysis",
+    requires_tools=["strings", "objdump"],
     input_schema={
         "type": "object",
         "required": ["binary_path"],
