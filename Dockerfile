@@ -158,7 +158,14 @@ LABEL org.opencontainers.image.title="Revula" \
 # Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive \
     GHIDRA_INSTALL_DIR=/opt/ghidra \
-    JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+    JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 \
+    CFR_VERSION=0.152 \
+    RADARE2_VERSION=6.1.2 \
+    RIZIN_VERSION=0.8.2 \
+    DYNAMORIO_VERSION=11.91.20545 \
+    DIE_VERSION=3.10 \
+    UPX_VERSION=5.1.1 \
+    RETDEC_VERSION=5.0
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -179,7 +186,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     binutils \
     binutils-multiarch \
     binwalk \
-    # radare2/rizin/upx are not available in bookworm default repos
+    checksec \
+    apksigner \
+    mono-utils \
+    mono-devel \
+    ruby-full \
+    llvm-19 \
+    gnupg \
     qemu-user \
     qemu-system \
     qemu-utils \
@@ -198,8 +211,42 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     unzip \
     zip \
+    xz-utils \
     vim-tiny \
     && rm -rf /var/lib/apt/lists/*
+
+# Install third-party tools not available from bookworm main
+RUN set -eux; \
+    curl -fsSL -o /tmp/radare2.deb "https://github.com/radareorg/radare2/releases/download/${RADARE2_VERSION}/radare2_${RADARE2_VERSION}_amd64.deb"; \
+    curl -fsSL -o /tmp/die.deb "https://github.com/horsicq/DIE-engine/releases/download/${DIE_VERSION}/die_${DIE_VERSION}_Debian_12_amd64.deb"; \
+    curl -fsSL https://apt.metasploit.com/metasploit-framework.gpg.key | gpg --dearmor -o /usr/share/keyrings/metasploit-framework.gpg; \
+    echo "deb [signed-by=/usr/share/keyrings/metasploit-framework.gpg] https://apt.metasploit.com/ lucid main" > /etc/apt/sources.list.d/metasploit-framework.list; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends metasploit-framework /tmp/radare2.deb /tmp/die.deb; \
+    gem install --no-document one_gadget; \
+    mkdir -p /opt/rizin /opt/dynamorio /opt/upx /opt/retdec /opt/capa-rules; \
+    curl -fsSL -o /tmp/rizin.tar.xz "https://github.com/rizinorg/rizin/releases/download/v${RIZIN_VERSION}/rizin-v${RIZIN_VERSION}-static-x86_64.tar.xz"; \
+    tar -xf /tmp/rizin.tar.xz -C /opt/rizin; \
+    ln -sf /opt/rizin/bin/rizin /usr/local/bin/rizin; \
+    ln -sf /opt/rizin/bin/rz /usr/local/bin/rz; \
+    ln -sf /opt/rizin/bin/rz-diff /usr/local/bin/rz-diff; \
+    curl -fsSL -o /tmp/dynamorio.tar.gz "https://github.com/DynamoRIO/dynamorio/releases/download/cronbuild-${DYNAMORIO_VERSION}/DynamoRIO-Linux-${DYNAMORIO_VERSION}.tar.gz"; \
+    tar -xzf /tmp/dynamorio.tar.gz -C /opt/dynamorio --strip-components=1; \
+    ln -sf /opt/dynamorio/bin64/drrun /usr/local/bin/drrun; \
+    curl -fsSL -o /tmp/upx.tar.xz "https://github.com/upx/upx/releases/download/v${UPX_VERSION}/upx-${UPX_VERSION}-amd64_linux.tar.xz"; \
+    tar -xf /tmp/upx.tar.xz -C /opt/upx; \
+    ln -sf /opt/upx/upx-${UPX_VERSION}-amd64_linux/upx /usr/local/bin/upx; \
+    curl -fsSL -o /tmp/retdec.tar.xz "https://github.com/avast/retdec/releases/download/v${RETDEC_VERSION}/RetDec-v${RETDEC_VERSION}-Linux-Release.tar.xz"; \
+    tar -xf /tmp/retdec.tar.xz -C /opt/retdec; \
+    ln -sf /opt/retdec/bin/retdec-decompiler /usr/local/bin/retdec-decompiler; \
+    curl -fsSL -o /tmp/cfr.jar "https://www.benf.org/other/cfr/cfr-${CFR_VERSION}.jar"; \
+    mv /tmp/cfr.jar /opt/cfr.jar; \
+    printf '#!/usr/bin/env bash\nexec java -jar /opt/cfr.jar "$@"\n' > /usr/local/bin/cfr; \
+    chmod +x /usr/local/bin/cfr; \
+    curl -fsSL -o /tmp/capa-rules.tar.gz "https://github.com/mandiant/capa-rules/archive/refs/heads/master.tar.gz"; \
+    tar -xzf /tmp/capa-rules.tar.gz -C /opt/capa-rules --strip-components=1; \
+    rm -rf /var/lib/apt/lists/* /tmp/*; \
+    rm -f /etc/apt/sources.list.d/metasploit-framework.list /usr/share/keyrings/metasploit-framework.gpg
 
 # Copy Python virtual environment from builder
 COPY --from=builder /opt/venv /opt/venv
