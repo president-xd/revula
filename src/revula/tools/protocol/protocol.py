@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
         "statistics, filtering, conversation analysis."
     ),
     category="protocol",
+    requires_tools=["tshark", "capinfos"],
     input_schema={
         "type": "object",
         "required": ["pcap_path", "action"],
