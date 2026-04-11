@@ -542,9 +542,11 @@ EOF
                     rizin_bin="$(first_matching_file "$rizin_dir" "rizin" || true)"
                     rz_bin="$(first_matching_file "$rizin_dir" "rz" || true)"
                     rz_diff_bin="$(first_matching_file "$rizin_dir" "rz-diff" || true)"
-                    if [[ -n "$rizin_bin" ]] && [[ -n "$rz_bin" ]] && [[ -n "$rz_diff_bin" ]]; then
+                    if [[ -n "$rizin_bin" ]] && [[ -n "$rz_diff_bin" ]]; then
                         ln -sfn "$rizin_bin" "${user_bin_dir}/rizin"
-                        ln -sfn "$rz_bin" "${user_bin_dir}/rz"
+                        if [[ -n "$rz_bin" ]]; then
+                            ln -sfn "$rz_bin" "${user_bin_dir}/rz"
+                        fi
                         ln -sfn "$rz_diff_bin" "${user_bin_dir}/rz-diff"
                         added_user_bin=true
                         success "rizin/rz-diff installed to ${rizin_dir}"
@@ -772,11 +774,11 @@ install_python_deps() {
         || warn "angr installation failed — it may not support your platform"
 
     # triton — note: the PyPI 'triton' is OpenAI's Triton GPU compiler, NOT
-    # Jonathan Salwan's Triton for binary analysis. The RE Triton must be built
-    # from source: https://github.com/JonathanSalwan/Triton
-    warn "Triton (symbolic execution): NOT available via pip."
-    warn "  Build from source: https://github.com/JonathanSalwan/Triton"
-    warn "  This is optional — most users don't need it."
+    # Jonathan Salwan's Triton for binary analysis. The RE Triton backend can
+    # only be enabled by building from source:
+    # https://github.com/JonathanSalwan/Triton
+    info "Triton backend is source-build only and remains disabled by default."
+    info "  Optional install guide: https://github.com/JonathanSalwan/Triton"
 }
 
 # ---------------------------------------------------------------------------
