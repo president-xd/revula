@@ -683,7 +683,7 @@ revula degrades gracefully. Tools that depend on missing backends return clear e
 | **Protocol** | Binary protocol dissection, fuzzing | `tshark` | `scapy` |
 | **Unpacking** | Packer signature detection | `upx` | `frida` |
 | **Deobfuscation** | XOR/ROT/Base64 deobfuscation | | `capstone` ✓ |
-| **Symbolic** | | | `angr`, `triton` (source-build only) |
+| **Symbolic** | | | `angr`, `triton` (source-build only; tool auto-enables when installed) |
 | **Binary Formats** | | `aapt`, `javap`, `monodis`, `wasm2wat` | |
 | **Utilities** | Hex dump, binary diff, patching | `tshark` | `scapy`, `ssdeep`, `tlsh` |
 
