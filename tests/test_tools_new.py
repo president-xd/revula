@@ -603,7 +603,12 @@ class TestSymbolicRegistration:
         assert TOOL_REGISTRY.get("re_angr_vuln_scan") is not None
 
     def test_triton_dse_registered(self) -> None:
-        assert TOOL_REGISTRY.get("re_triton_dse") is not None
+        try:
+            from triton import ARCH, TritonContext  # noqa: F401
+        except Exception:
+            assert TOOL_REGISTRY.get("re_triton_dse") is None
+        else:
+            assert TOOL_REGISTRY.get("re_triton_dse") is not None
 
 
 # ---------------------------------------------------------------------------
