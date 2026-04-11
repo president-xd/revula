@@ -23,6 +23,15 @@ try:
 except ImportError:
     ANGR_AVAILABLE = False
 
+try:
+    import triton as _triton
+
+    _ = (_triton.ARCH, _triton.TritonContext)
+except Exception:
+    TRITON_AVAILABLE = False
+else:
+    TRITON_AVAILABLE = True
+
 
 # ---------------------------------------------------------------------------
 # angr Integration
@@ -363,36 +372,6 @@ async def handle_angr_vuln_scan(arguments: dict[str, Any]) -> list[dict[str, Any
 # ---------------------------------------------------------------------------
 
 
-@TOOL_REGISTRY.register(
-    name="re_triton_dse",
-    description=(
-        "Dynamic Symbolic Execution using Triton. "
-        "Concretely executes code while maintaining symbolic state. "
-        "Can solve for inputs that reach specific conditions."
-    ),
-    input_schema={
-        "type": "object",
-        "properties": {
-            "binary_path": {"type": "string"},
-            "target_address": {
-                "type": "string",
-                "description": "Address to reach (hex).",
-            },
-            "start_address": {
-                "type": "string",
-                "description": "Address to start from (hex).",
-            },
-            "symbolic_memory": {
-                "type": "object",
-                "description": "Memory addresses to symbolize: {address: size}.",
-            },
-            "max_instructions": {"type": "integer", "default": 10000},
-        },
-        "required": ["binary_path"],
-    },
-    category="symbolic",
-    requires_modules=["triton"],
-)
 async def handle_triton_dse(arguments: dict[str, Any]) -> list[dict[str, Any]]:
     """DSE with Triton."""
     try:
@@ -539,3 +518,37 @@ async def handle_triton_dse(arguments: dict[str, Any]) -> list[dict[str, Any]]:
         "path_constraints": path_constraints[:100],
         "solutions": solutions,
     })
+
+
+if TRITON_AVAILABLE:
+    TOOL_REGISTRY.register(
+        name="re_triton_dse",
+        description=(
+            "Dynamic Symbolic Execution using Triton. "
+            "Concretely executes code while maintaining symbolic state. "
+            "Can solve for inputs that reach specific conditions."
+        ),
+        input_schema={
+            "type": "object",
+            "properties": {
+                "binary_path": {"type": "string"},
+                "target_address": {
+                    "type": "string",
+                    "description": "Address to reach (hex).",
+                },
+                "start_address": {
+                    "type": "string",
+                    "description": "Address to start from (hex).",
+                },
+                "symbolic_memory": {
+                    "type": "object",
+                    "description": "Memory addresses to symbolize: {address: size}.",
+                },
+                "max_instructions": {"type": "integer", "default": 10000},
+            },
+            "required": ["binary_path"],
+        },
+        category="symbolic",
+    )(handle_triton_dse)
+else:
+    logger.info("Skipping re_triton_dse registration: Triton backend unavailable")
