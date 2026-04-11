@@ -133,7 +133,6 @@ def check_python_imports(report: ValidationReport) -> None:
         ("tlsh", "tlsh", False),
         ("ssdeep", "ssdeep|ppdeep", False),
         ("uncompyle6", "uncompyle6", False),
-        ("triton", "triton", False),
         ("quark", "quark", False),
         ("semgrep", "semgrep", False),
     ]
