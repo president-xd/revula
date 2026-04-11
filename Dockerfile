@@ -56,6 +56,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gdb \
     gdb-multiarch \
     lldb \
+    python3-lldb-14 \
     strace \
     ltrace \
     # Disassemblers and binary tools
@@ -232,9 +233,10 @@ RUN set -eux; \
     rizin_bin="$(find /opt/rizin -type f -name rizin | head -1)"; \
     rz_bin="$(find /opt/rizin -type f -name rz | head -1)"; \
     rz_diff_bin="$(find /opt/rizin -type f -name rz-diff | head -1)"; \
-    [ -n "${rizin_bin}" ] && [ -n "${rz_bin}" ] && [ -n "${rz_diff_bin}" ]; \
+    [ -n "${rizin_bin}" ]; \
+    [ -n "${rz_diff_bin}" ]; \
     ln -sf "${rizin_bin}" /usr/local/bin/rizin; \
-    ln -sf "${rz_bin}" /usr/local/bin/rz; \
+    if [ -n "${rz_bin}" ]; then ln -sf "${rz_bin}" /usr/local/bin/rz; fi; \
     ln -sf "${rz_diff_bin}" /usr/local/bin/rz-diff; \
     curl -fsSL -o /tmp/dynamorio.tar.gz "https://github.com/DynamoRIO/dynamorio/releases/download/cronbuild-${DYNAMORIO_VERSION}/DynamoRIO-Linux-${DYNAMORIO_VERSION}.tar.gz"; \
     tar -xzf /tmp/dynamorio.tar.gz -C /opt/dynamorio --strip-components=1; \
@@ -261,7 +263,9 @@ RUN set -eux; \
         one_gadget_bin="$(find /var/lib/gems -type f -name one_gadget 2>/dev/null | head -1 || true)"; \
     fi; \
     [ -n "${one_gadget_bin}" ]; \
-    ln -sf "${one_gadget_bin}" /usr/local/bin/one_gadget; \
+    if [ "${one_gadget_bin}" != "/usr/local/bin/one_gadget" ]; then \
+        ln -sf "${one_gadget_bin}" /usr/local/bin/one_gadget; \
+    fi; \
     if ! command -v r2 >/dev/null 2>&1 && command -v radare2 >/dev/null 2>&1; then \
         ln -sf "$(command -v radare2)" /usr/local/bin/r2; \
     fi; \
@@ -283,6 +287,7 @@ RUN set -eux; \
     command -v upx >/dev/null; \
     command -v cfr >/dev/null; \
     (command -v llvm-pdbutil >/dev/null || command -v llvm-pdbutil-19 >/dev/null); \
+    PYTHONPATH="/usr/lib/llvm-14/lib/python3/dist-packages:${PYTHONPATH:-}" python -c "import lldb"; \
     curl -fsSL -o /tmp/capa-rules.tar.gz "https://github.com/mandiant/capa-rules/archive/refs/heads/master.tar.gz"; \
     tar -xzf /tmp/capa-rules.tar.gz -C /opt/capa-rules --strip-components=1; \
     rm -rf /var/lib/apt/lists/* /tmp/*; \
@@ -336,6 +341,7 @@ VOLUME ["/root/.revula", "/workspace"]
 # Environment variables
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONPATH="/usr/lib/llvm-14/lib/python3/dist-packages:${PYTHONPATH}" \
     REVULA_MAX_MEMORY_MB=2048 \
     REVULA_DEFAULT_TIMEOUT=300 \
     GHIDRA_PATH=/opt/ghidra \
