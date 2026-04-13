@@ -32,6 +32,7 @@ The compose file provides:
 
 - `revula-stdio` profile: stdio runtime container
 - `revula-dev` profile: interactive development container
+- `revula-stdio` intentionally sets `tty: false` to keep MCP JSON-RPC framing stable over stdio
 
 ### Run stdio profile
 
