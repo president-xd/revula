@@ -7,6 +7,7 @@ Tests: ResultCache (LRU + TTL), RateLimiter, _TokenBucket.
 from __future__ import annotations
 
 import json
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import patch
 
@@ -176,9 +177,9 @@ class TestResultCacheMakeKey:
 
 
 class TestServerCachePolicy:
-    """Server-level cache policy: explicit opt-in only."""
+    """Server-level cache policy tests."""
 
-    def test_is_cacheable_tool_requires_explicit_opt_in(
+    def test_is_cacheable_tool_respects_explicit_overrides(
         self,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
@@ -188,8 +189,9 @@ class TestServerCachePolicy:
 
         @registry.register(
             name="cache_opt_out",
-            description="default non-cacheable",
+            description="explicit non-cacheable",
             input_schema={"type": "object", "properties": {}, "additionalProperties": False},
+            cacheable=False,
         )
         async def _non_cacheable_handler(args: dict[str, Any]) -> list[dict[str, Any]]:
             return text_result({"ok": True})
@@ -257,8 +259,8 @@ class TestServerCachePolicy:
 
         first_cached = await server.call_tool("cache_opt_in", {"value": 1})
         second_cached = await server.call_tool("cache_opt_in", {"value": 1})
-        first_cached_payload = json.loads(first_cached[0].text)
-        second_cached_payload = json.loads(second_cached[0].text)
+        first_cached_payload = json.loads(first_cached.content[0].text)
+        second_cached_payload = json.loads(second_cached.content[0].text)
 
         assert first_cached_payload["count"] == 1
         assert second_cached_payload["count"] == 1
@@ -266,12 +268,99 @@ class TestServerCachePolicy:
 
         first_non_cached = await server.call_tool("cache_opt_out", {"value": 1})
         second_non_cached = await server.call_tool("cache_opt_out", {"value": 1})
-        first_non_cached_payload = json.loads(first_non_cached[0].text)
-        second_non_cached_payload = json.loads(second_non_cached[0].text)
+        first_non_cached_payload = json.loads(first_non_cached.content[0].text)
+        second_non_cached_payload = json.loads(second_non_cached.content[0].text)
 
         assert first_non_cached_payload["count"] == 1
         assert second_non_cached_payload["count"] == 2
         assert calls["no_cache"] == 2
+
+
+class TestServerProtocolSurface:
+    """MCP protocol-level behavior for call/list tooling."""
+
+    @pytest.mark.asyncio
+    async def test_call_tool_sets_is_error_true(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        import revula.server as server
+
+        registry = ToolRegistry()
+        schema = {
+            "type": "object",
+            "required": ["path"],
+            "properties": {"path": {"type": "string"}},
+            "additionalProperties": False,
+        }
+
+        @registry.register(
+            name="re_proto_error",
+            description="protocol error tool",
+            input_schema=schema,
+            cacheable=False,
+        )
+        async def _handler(args: dict[str, Any]) -> list[dict[str, Any]]:
+            return text_result({"ok": True})
+
+        class _AllowAllRateLimiter:
+            def check(self, _tool_name: str) -> bool:
+                return True
+
+        cfg = SimpleNamespace(
+            tool_naming=SimpleNamespace(namespace="revula", include_legacy_names=False),
+            rate_limit=SimpleNamespace(global_rpm=120, per_tool_rpm=30, burst_size=10, enabled=True),
+        )
+
+        monkeypatch.setattr(server, "TOOL_REGISTRY", registry)
+        monkeypatch.setattr(server, "RESULT_CACHE", ResultCache())
+        monkeypatch.setattr(server, "RATE_LIMITER", _AllowAllRateLimiter())
+        monkeypatch.setattr(server, "SESSION_MANAGER", object())
+        monkeypatch.setattr(server, "get_config", lambda: cfg)
+
+        result = await server.call_tool("revula_proto_error", {})
+        assert result.isError is True
+        assert result.structuredContent is not None
+        assert result.structuredContent["ok"] is False
+
+    @pytest.mark.asyncio
+    async def test_list_tools_exposes_namespaced_names(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        import revula.server as server
+
+        registry = ToolRegistry()
+
+        @registry.register(
+            name="re_read_test",
+            description="Read-only test tool with intentionally verbose description for trimming behavior.",
+            input_schema={"type": "object", "properties": {}, "additionalProperties": False},
+            cacheable=True,
+        )
+        async def _handler(args: dict[str, Any]) -> list[dict[str, Any]]:
+            return text_result({"ok": True})
+
+        cfg = SimpleNamespace(
+            tool_naming=SimpleNamespace(namespace="revula", include_legacy_names=False),
+        )
+
+        monkeypatch.setattr(server, "TOOL_REGISTRY", registry)
+        monkeypatch.setattr(server, "get_config", lambda: cfg)
+
+        tools = await server.list_tools()
+        assert len(tools) == 1
+        assert tools[0].name == "revula_read_test"
+        assert tools[0].annotations is not None
+        assert tools[0].outputSchema is not None
+
+    @pytest.mark.asyncio
+    async def test_prompt_templates_are_registered(self) -> None:
+        import revula.server as server
+
+        prompts = await server.list_prompts()
+        names = {prompt.name for prompt in prompts}
+        assert "revula_analyze_malware_binary" in names
+        rendered = await server.get_prompt(
+            "revula_analyze_malware_binary",
+            {"binary_path": "/tmp/sample.bin"},
+        )
+        assert rendered.messages
+        assert "/tmp/sample.bin" in rendered.messages[0].content.text
 
 
 # ---------------------------------------------------------------------------
