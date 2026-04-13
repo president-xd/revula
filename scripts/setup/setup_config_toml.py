@@ -8,32 +8,37 @@ with analysis directories, tool paths, and security settings.
 Usage:
     python scripts/setup/setup_config_toml.py
 """
+
 from __future__ import annotations
 
 import os
 import shutil
 import sys
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
-
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _color(code: str, text: str) -> str:
     if sys.stdout.isatty():
         return f"\033[{code}m{text}\033[0m"
     return text
 
+
 def bold(text: str) -> str:
     return _color("1", text)
+
 
 def green(text: str) -> str:
     return _color("32", text)
 
+
 def yellow(text: str) -> str:
     return _color("33", text)
+
 
 def cyan(text: str) -> str:
     return _color("36", text)
@@ -46,19 +51,19 @@ CONFIG_FILE = CONFIG_DIR / "config.toml"
 TOOL_ENTRIES: list[tuple[str, str, list[str]]] = [
     # (config_key, display_name, binary_candidates)
     ("ghidra_headless.path", "Ghidra analyzeHeadless", ["analyzeHeadless"]),
-    ("radare2.path",         "Radare2 (r2)",           ["r2", "radare2"]),
-    ("rizin.path",           "Rizin",                   ["rizin", "rz"]),
-    ("gdb.path",             "GDB",                     ["gdb"]),
-    ("lldb.path",            "LLDB",                    ["lldb"]),
-    ("adb.path",             "ADB",                     ["adb"]),
-    ("java.path",            "Java/JDK",                ["java", "javap"]),
-    ("jadx.path",            "JADX",                    ["jadx"]),
-    ("apktool.path",         "Apktool",                 ["apktool"]),
-    ("semgrep.path",         "Semgrep",                 ["semgrep"]),
-    ("quark.path",           "Quark",                   ["quark"]),
-    ("capa.path",            "capa",                    ["capa"]),
-    ("floss.path",           "FLOSS",                   ["floss"]),
-    ("upx.path",             "UPX",                     ["upx"]),
+    ("radare2.path", "Radare2 (r2)", ["r2", "radare2"]),
+    ("rizin.path", "Rizin", ["rizin", "rz"]),
+    ("gdb.path", "GDB", ["gdb"]),
+    ("lldb.path", "LLDB", ["lldb"]),
+    ("adb.path", "ADB", ["adb"]),
+    ("java.path", "Java/JDK", ["java", "javap"]),
+    ("jadx.path", "JADX", ["jadx"]),
+    ("apktool.path", "Apktool", ["apktool"]),
+    ("semgrep.path", "Semgrep", ["semgrep"]),
+    ("quark.path", "Quark", ["quark"]),
+    ("capa.path", "capa", ["capa"]),
+    ("floss.path", "FLOSS", ["floss"]),
+    ("upx.path", "UPX", ["upx"]),
 ]
 
 
@@ -90,6 +95,7 @@ def auto_detect_path(candidates: list[str]) -> str:
 # ---------------------------------------------------------------------------
 # Interactive sections
 # ---------------------------------------------------------------------------
+
 
 def section_allowed_dirs() -> list[str]:
     """Ask for allowed analysis directories."""
@@ -149,7 +155,7 @@ def section_tool_paths() -> dict[str, str]:
             else:
                 paths[config_key] = detected
         else:
-            print(f"  {yellow('–')} {display_name}: not found")
+            print(f"  {yellow('-')} {display_name}: not found")
             manual = prompt(f"  Path to {display_name}? (Enter to skip)")
             if manual:
                 paths[config_key] = manual
@@ -186,19 +192,90 @@ def section_security() -> dict[str, int]:
     return settings
 
 
+def section_rate_limit() -> dict[str, int | bool]:
+    """Configure MCP tool call rate limits."""
+    print()
+    print(bold("─── Rate Limit Settings ───"))
+    print()
+
+    settings: dict[str, int | bool] = {}
+    settings["enabled"] = prompt_yn("Enable tool-call rate limiting?", default=True)
+
+    val = prompt("Global requests per minute", "120")
+    try:
+        settings["global_rpm"] = int(val)
+    except ValueError:
+        settings["global_rpm"] = 120
+
+    val = prompt("Per-tool requests per minute", "30")
+    try:
+        settings["per_tool_rpm"] = int(val)
+    except ValueError:
+        settings["per_tool_rpm"] = 30
+
+    val = prompt("Burst size", "10")
+    try:
+        settings["burst_size"] = int(val)
+    except ValueError:
+        settings["burst_size"] = 10
+
+    return settings
+
+
+def section_tool_naming() -> dict[str, str | bool]:
+    """Configure public MCP tool naming policy."""
+    print()
+    print(bold("─── Tool Naming Settings ───"))
+    print()
+
+    settings: dict[str, str | bool] = {}
+    settings["namespace"] = prompt("Tool namespace prefix", "revula")
+    settings["include_legacy_names"] = prompt_yn(
+        "Expose legacy re_* tool aliases in tools/list?",
+        default=False,
+    )
+    return settings
+
+
+def section_execution() -> dict[str, int]:
+    """Configure subprocess execution reliability knobs."""
+    print()
+    print(bold("─── Execution Settings ───"))
+    print()
+
+    settings: dict[str, int] = {}
+    val = prompt("Subprocess retries on transient failures", "1")
+    try:
+        settings["subprocess_retries"] = int(val)
+    except ValueError:
+        settings["subprocess_retries"] = 1
+
+    val = prompt("Retry backoff in milliseconds", "250")
+    try:
+        settings["subprocess_retry_backoff_ms"] = int(val)
+    except ValueError:
+        settings["subprocess_retry_backoff_ms"] = 250
+
+    return settings
+
+
 # ---------------------------------------------------------------------------
 # TOML generation (manual — no external deps needed)
 # ---------------------------------------------------------------------------
+
 
 def generate_toml(
     allowed_dirs: list[str],
     tool_paths: dict[str, str],
     security: dict[str, int],
+    rate_limit: dict[str, int | bool],
+    tool_naming: dict[str, str | bool],
+    execution: dict[str, int],
 ) -> str:
     """Generate config.toml content."""
     lines: list[str] = [
         "# Revula Configuration",
-        f"# Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+        f"# Generated on {datetime.now(UTC).strftime('%Y-%m-%d %H:%M:%SZ')}",
         "#",
         "# Docs: https://github.com/president-xd/revula#configuration",
         "",
@@ -210,6 +287,27 @@ def generate_toml(
     lines.append(f"allowed_dirs = [{dirs_str}]")
 
     for key, val in security.items():
+        lines.append(f"{key} = {val}")
+
+    lines.append("")
+    lines.append("[rate_limit]")
+    for key, val in rate_limit.items():
+        if isinstance(val, bool):
+            lines.append(f"{key} = {'true' if val else 'false'}")
+        else:
+            lines.append(f"{key} = {val}")
+
+    lines.append("")
+    lines.append("[tool_naming]")
+    for key, val in tool_naming.items():
+        if isinstance(val, bool):
+            lines.append(f"{key} = {'true' if val else 'false'}")
+        else:
+            lines.append(f'{key} = "{val}"')
+
+    lines.append("")
+    lines.append("[execution]")
+    for key, val in execution.items():
         lines.append(f"{key} = {val}")
 
     lines.append("")
@@ -239,6 +337,7 @@ def generate_toml(
 # Main
 # ---------------------------------------------------------------------------
 
+
 def main() -> None:
     print()
     print("╔══════════════════════════════════════════════════════╗")
@@ -255,7 +354,7 @@ def main() -> None:
             print("  Aborted.")
             sys.exit(0)
         # Backup
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        ts = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
         backup = CONFIG_FILE.with_name(f"config.{ts}.bak.toml")
         shutil.copy2(CONFIG_FILE, backup)
         print(f"  Backed up to: {backup}")
@@ -264,9 +363,19 @@ def main() -> None:
     allowed_dirs = section_allowed_dirs()
     tool_paths = section_tool_paths()
     security = section_security()
+    rate_limit = section_rate_limit()
+    tool_naming = section_tool_naming()
+    execution = section_execution()
 
     # Generate
-    toml_content = generate_toml(allowed_dirs, tool_paths, security)
+    toml_content = generate_toml(
+        allowed_dirs,
+        tool_paths,
+        security,
+        rate_limit,
+        tool_naming,
+        execution,
+    )
 
     print()
     print(bold("─── Preview ───"))
