@@ -39,6 +39,9 @@ def test_setup_config_emits_ghidra_headless_schema() -> None:
         ["/tmp"],
         {"ghidra_headless.path": "/opt/ghidra/support/analyzeHeadless"},
         {"max_memory_mb": 512, "default_timeout": 60, "max_timeout": 600},
+        {"enabled": True, "global_rpm": 120, "per_tool_rpm": 30, "burst_size": 10},
+        {"namespace": "revula", "include_legacy_names": False},
+        {"subprocess_retries": 1, "subprocess_retry_backoff_ms": 250},
     )
     assert "[tools.ghidra_headless]" in toml
     assert "headless_path" not in toml
