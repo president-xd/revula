@@ -34,6 +34,8 @@ docker run -it --rm --entrypoint /bin/bash revula:latest
 
 ## Docker Compose
 
+`revula-stdio` uses `tty: false` so stdio remains JSON-RPC safe for MCP framing.
+
 ```bash
 docker compose --profile stdio run --rm revula-stdio
 docker compose --profile dev run --rm revula-dev
