@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 import os
 import platform
+import re
 import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -92,6 +93,14 @@ ENV_OVERRIDES: dict[str, str] = {
     "REVULA_MAX_MEMORY_MB": "security.max_memory_mb",
     "REVULA_DEFAULT_TIMEOUT": "security.default_timeout",
     "REVULA_MAX_TIMEOUT": "security.max_timeout",
+    "REVULA_GLOBAL_RPM": "rate_limit.global_rpm",
+    "REVULA_PER_TOOL_RPM": "rate_limit.per_tool_rpm",
+    "REVULA_BURST_SIZE": "rate_limit.burst_size",
+    "REVULA_RATE_LIMIT_ENABLED": "rate_limit.enabled",
+    "REVULA_TOOL_NAMESPACE": "tool_naming.namespace",
+    "REVULA_INCLUDE_LEGACY_TOOL_NAMES": "tool_naming.include_legacy_names",
+    "REVULA_SUBPROCESS_RETRIES": "execution.subprocess_retries",
+    "REVULA_SUBPROCESS_RETRY_BACKOFF_MS": "execution.subprocess_retry_backoff_ms",
 }
 
 # Tools to probe via shutil.which()
@@ -205,11 +214,40 @@ class SecurityConfig:
 
 
 @dataclass
+class RateLimitSettings:
+    """Rate-limiting configuration for MCP tool calls."""
+
+    global_rpm: int = 120
+    per_tool_rpm: int = 30
+    burst_size: int = 10
+    enabled: bool = True
+
+
+@dataclass
+class ToolNamingConfig:
+    """Public naming strategy for tool discovery and compatibility."""
+
+    namespace: str = "revula"
+    include_legacy_names: bool = False
+
+
+@dataclass
+class ExecutionConfig:
+    """Runtime execution policy for subprocess reliability."""
+
+    subprocess_retries: int = 0
+    subprocess_retry_backoff_ms: int = 250
+
+
+@dataclass
 class ServerConfig:
     """Top-level server configuration."""
 
     tools: dict[str, ToolInfo] = field(default_factory=dict)
     security: SecurityConfig = field(default_factory=SecurityConfig)
+    rate_limit: RateLimitSettings = field(default_factory=RateLimitSettings)
+    tool_naming: ToolNamingConfig = field(default_factory=ToolNamingConfig)
+    execution: ExecutionConfig = field(default_factory=ExecutionConfig)
     platform: str = ""
     arch: str = ""
     python_modules: dict[str, bool] = field(default_factory=dict)
@@ -241,10 +279,7 @@ class ToolNotAvailableError(Exception):
     def __init__(self, tool_name: str, install_hint: str = "") -> None:
         self.tool_name = tool_name
         self.install_hint = install_hint
-        msg = f"Tool '{tool_name}' is not available."
-        if install_hint:
-            msg += f" Install: {install_hint}"
-        super().__init__(msg)
+        super().__init__(f"Tool '{tool_name}' is not available.")
 
 
 # ---------------------------------------------------------------------------
@@ -514,6 +549,175 @@ def _load_security_config(raw: dict[str, Any]) -> SecurityConfig:
     return sec
 
 
+def _parse_bool(value: Any, field_name: str) -> bool | None:
+    """Parse boolean values from config/env with strict accepted forms."""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered in {"1", "true", "yes", "on"}:
+            return True
+        if lowered in {"0", "false", "no", "off"}:
+            return False
+    logger.warning("Invalid boolean config for %s: %r", field_name, value)
+    return None
+
+
+def _load_rate_limit_config(raw: dict[str, Any]) -> RateLimitSettings:
+    """Load rate-limit config from config file + environment overrides."""
+    rate_limit = RateLimitSettings()
+
+    def _parse_int(value: Any, field_name: str, *, minimum: int = 1) -> int | None:
+        try:
+            parsed = int(value)
+        except (TypeError, ValueError):
+            logger.warning("Invalid rate_limit config for %s: %r", field_name, value)
+            return None
+        if parsed < minimum:
+            logger.warning(
+                "Invalid rate_limit config for %s: %r (must be >= %d)",
+                field_name,
+                value,
+                minimum,
+            )
+            return None
+        return parsed
+
+    rl_raw = raw.get("rate_limit", {})
+    if isinstance(rl_raw, dict):
+        if "global_rpm" in rl_raw:
+            parsed = _parse_int(rl_raw["global_rpm"], "rate_limit.global_rpm")
+            if parsed is not None:
+                rate_limit.global_rpm = parsed
+        if "per_tool_rpm" in rl_raw:
+            parsed = _parse_int(rl_raw["per_tool_rpm"], "rate_limit.per_tool_rpm")
+            if parsed is not None:
+                rate_limit.per_tool_rpm = parsed
+        if "burst_size" in rl_raw:
+            parsed = _parse_int(rl_raw["burst_size"], "rate_limit.burst_size")
+            if parsed is not None:
+                rate_limit.burst_size = parsed
+        if "enabled" in rl_raw:
+            parsed = _parse_bool(rl_raw["enabled"], "rate_limit.enabled")
+            if parsed is not None:
+                rate_limit.enabled = parsed
+
+    env_global = os.environ.get("REVULA_GLOBAL_RPM")
+    if env_global:
+        parsed = _parse_int(env_global, "REVULA_GLOBAL_RPM")
+        if parsed is not None:
+            rate_limit.global_rpm = parsed
+
+    env_per_tool = os.environ.get("REVULA_PER_TOOL_RPM")
+    if env_per_tool:
+        parsed = _parse_int(env_per_tool, "REVULA_PER_TOOL_RPM")
+        if parsed is not None:
+            rate_limit.per_tool_rpm = parsed
+
+    env_burst = os.environ.get("REVULA_BURST_SIZE")
+    if env_burst:
+        parsed = _parse_int(env_burst, "REVULA_BURST_SIZE")
+        if parsed is not None:
+            rate_limit.burst_size = parsed
+
+    env_enabled = os.environ.get("REVULA_RATE_LIMIT_ENABLED")
+    if env_enabled:
+        parsed = _parse_bool(env_enabled, "REVULA_RATE_LIMIT_ENABLED")
+        if parsed is not None:
+            rate_limit.enabled = parsed
+
+    return rate_limit
+
+
+def _load_tool_naming_config(raw: dict[str, Any]) -> ToolNamingConfig:
+    """Load tool naming config (namespace + legacy alias exposure)."""
+    naming = ToolNamingConfig()
+
+    def _set_namespace(value: Any, field_name: str) -> None:
+        if not isinstance(value, str):
+            logger.warning("Invalid %s value (expected string): %r", field_name, value)
+            return
+        candidate = value.strip()
+        if not candidate:
+            logger.warning("Invalid %s value (empty string)", field_name)
+            return
+        if not re.match(r"^[a-zA-Z][a-zA-Z0-9_]{1,63}$", candidate):
+            logger.warning("Invalid %s value %r (must match ^[a-zA-Z][a-zA-Z0-9_]{1,63}$)", field_name, value)
+            return
+        naming.namespace = candidate.lower()
+
+    tn_raw = raw.get("tool_naming", {})
+    if isinstance(tn_raw, dict):
+        if "namespace" in tn_raw:
+            _set_namespace(tn_raw["namespace"], "tool_naming.namespace")
+        if "include_legacy_names" in tn_raw:
+            parsed = _parse_bool(tn_raw["include_legacy_names"], "tool_naming.include_legacy_names")
+            if parsed is not None:
+                naming.include_legacy_names = parsed
+
+    env_namespace = os.environ.get("REVULA_TOOL_NAMESPACE")
+    if env_namespace:
+        _set_namespace(env_namespace, "REVULA_TOOL_NAMESPACE")
+
+    env_legacy = os.environ.get("REVULA_INCLUDE_LEGACY_TOOL_NAMES")
+    if env_legacy:
+        parsed = _parse_bool(env_legacy, "REVULA_INCLUDE_LEGACY_TOOL_NAMES")
+        if parsed is not None:
+            naming.include_legacy_names = parsed
+
+    return naming
+
+
+def _load_execution_config(raw: dict[str, Any]) -> ExecutionConfig:
+    """Load subprocess execution retry policy."""
+    execution = ExecutionConfig()
+
+    def _parse_int(value: Any, field_name: str, *, minimum: int = 0) -> int | None:
+        try:
+            parsed = int(value)
+        except (TypeError, ValueError):
+            logger.warning("Invalid execution config for %s: %r", field_name, value)
+            return None
+        if parsed < minimum:
+            logger.warning(
+                "Invalid execution config for %s: %r (must be >= %d)",
+                field_name,
+                value,
+                minimum,
+            )
+            return None
+        return parsed
+
+    exec_raw = raw.get("execution", {})
+    if isinstance(exec_raw, dict):
+        if "subprocess_retries" in exec_raw:
+            parsed = _parse_int(exec_raw["subprocess_retries"], "execution.subprocess_retries", minimum=0)
+            if parsed is not None:
+                execution.subprocess_retries = parsed
+        if "subprocess_retry_backoff_ms" in exec_raw:
+            parsed = _parse_int(
+                exec_raw["subprocess_retry_backoff_ms"],
+                "execution.subprocess_retry_backoff_ms",
+                minimum=1,
+            )
+            if parsed is not None:
+                execution.subprocess_retry_backoff_ms = parsed
+
+    env_retries = os.environ.get("REVULA_SUBPROCESS_RETRIES")
+    if env_retries:
+        parsed = _parse_int(env_retries, "REVULA_SUBPROCESS_RETRIES", minimum=0)
+        if parsed is not None:
+            execution.subprocess_retries = parsed
+
+    env_backoff = os.environ.get("REVULA_SUBPROCESS_RETRY_BACKOFF_MS")
+    if env_backoff:
+        parsed = _parse_int(env_backoff, "REVULA_SUBPROCESS_RETRY_BACKOFF_MS", minimum=1)
+        if parsed is not None:
+            execution.subprocess_retry_backoff_ms = parsed
+
+    return execution
+
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -547,10 +751,16 @@ def load_config() -> ServerConfig:
 
     # Security config
     security = _load_security_config(raw)
+    rate_limit = _load_rate_limit_config(raw)
+    tool_naming = _load_tool_naming_config(raw)
+    execution = _load_execution_config(raw)
 
     config = ServerConfig(
         tools=tools,
         security=security,
+        rate_limit=rate_limit,
+        tool_naming=tool_naming,
+        execution=execution,
         platform=platform.system().lower(),
         arch=platform.machine().lower(),
         python_modules=python_modules,
