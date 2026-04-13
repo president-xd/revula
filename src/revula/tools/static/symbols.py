@@ -48,11 +48,14 @@ def _extract_dwarf_symbols(file_path: str) -> dict[str, Any]:
             top_die = cu.get_top_DIE()
             cu_info: dict[str, Any] = {
                 "name": top_die.attributes.get("DW_AT_name", {}).value.decode("utf-8", errors="replace")
-                if "DW_AT_name" in top_die.attributes else "unknown",
+                if "DW_AT_name" in top_die.attributes
+                else "unknown",
                 "comp_dir": top_die.attributes.get("DW_AT_comp_dir", {}).value.decode("utf-8", errors="replace")
-                if "DW_AT_comp_dir" in top_die.attributes else "",
+                if "DW_AT_comp_dir" in top_die.attributes
+                else "",
                 "language": str(top_die.attributes.get("DW_AT_language", {}).value)
-                if "DW_AT_language" in top_die.attributes else "unknown",
+                if "DW_AT_language" in top_die.attributes
+                else "unknown",
             }
             result["compilation_units"].append(cu_info)
 
@@ -86,11 +89,8 @@ def _extract_dwarf_symbols(file_path: str) -> dict[str, Any]:
                     if var.get("name"):
                         result["variables"].append(var)
 
-    # Cap output
     result["function_count"] = len(result["functions"])
     result["variable_count"] = len(result["variables"])
-    result["functions"] = result["functions"][:200]
-    result["variables"] = result["variables"][:200]
 
     return result
 
@@ -122,21 +122,25 @@ def _extract_lief_symbols(file_path: str) -> dict[str, Any]:
         # Imports
         for imp in binary.imports:
             for entry in imp.entries:
-                result["imports"].append({
-                    "library": imp.name,
-                    "name": entry.name if entry.name else f"ordinal_{entry.data}",
-                    "iat_address": entry.iat_value,
-                })
+                result["imports"].append(
+                    {
+                        "library": imp.name,
+                        "name": entry.name if entry.name else f"ordinal_{entry.data}",
+                        "iat_address": entry.iat_value,
+                    }
+                )
 
         # Exports
         if binary.has_exports:
             export = binary.get_export()
             for exp_entry in export.entries:
-                result["exports"].append({
-                    "name": exp_entry.name,
-                    "ordinal": exp_entry.ordinal,
-                    "address": exp_entry.address,
-                })
+                result["exports"].append(
+                    {
+                        "name": exp_entry.name,
+                        "ordinal": exp_entry.ordinal,
+                        "address": exp_entry.address,
+                    }
+                )
 
         result["is_stripped"] = not binary.has_debug
 
@@ -145,27 +149,33 @@ def _extract_lief_symbols(file_path: str) -> dict[str, Any]:
 
         for sym in binary.dynamic_symbols:
             if sym.imported:
-                result["imports"].append({
-                    "name": sym.name,
-                    "value": sym.value,
-                    "type": str(sym.type).split(".")[-1],
-                })
+                result["imports"].append(
+                    {
+                        "name": sym.name,
+                        "value": sym.value,
+                        "type": str(sym.type).split(".")[-1],
+                    }
+                )
             elif sym.exported:
-                result["exports"].append({
-                    "name": sym.name,
-                    "value": sym.value,
-                    "type": str(sym.type).split(".")[-1],
-                })
+                result["exports"].append(
+                    {
+                        "name": sym.name,
+                        "value": sym.value,
+                        "type": str(sym.type).split(".")[-1],
+                    }
+                )
 
         for sym in binary.symtab_symbols:
             if sym.name:
-                result["symbols"].append({
-                    "name": sym.name,
-                    "value": sym.value,
-                    "size": sym.size,
-                    "type": str(sym.type).split(".")[-1],
-                    "binding": str(sym.binding).split(".")[-1],
-                })
+                result["symbols"].append(
+                    {
+                        "name": sym.name,
+                        "value": sym.value,
+                        "size": sym.size,
+                        "type": str(sym.type).split(".")[-1],
+                        "binding": str(sym.binding).split(".")[-1],
+                    }
+                )
 
         result["is_stripped"] = len(list(binary.symtab_symbols)) == 0
 
@@ -184,13 +194,9 @@ def _extract_lief_symbols(file_path: str) -> dict[str, Any]:
                 else:
                     result["symbols"].append(sym_entry)
 
-    # Cap output
     result["import_count"] = len(result["imports"])
     result["export_count"] = len(result["exports"])
     result["symbol_count"] = len(result["symbols"])
-    result["imports"] = result["imports"][:200]
-    result["exports"] = result["exports"][:200]
-    result["symbols"] = result["symbols"][:200]
 
     return result
 
@@ -215,11 +221,11 @@ def _scan_function_prologues(
     if arch in ("x86", "x64"):
         # Common x86/x64 prologues
         patterns = [
-            (b"\x55\x48\x89\xe5", "push rbp; mov rbp, rsp"),              # x64
-            (b"\x55\x89\xe5", "push ebp; mov ebp, esp"),                   # x86
-            (b"\x48\x83\xec", "sub rsp, imm8"),                            # x64 leaf
-            (b"\x48\x89\x5c\x24", "mov [rsp+xx], rbx"),                   # x64 win
-            (b"\x40\x53\x48\x83\xec", "push rbx; sub rsp, imm8"),         # x64 win
+            (b"\x55\x48\x89\xe5", "push rbp; mov rbp, rsp"),  # x64
+            (b"\x55\x89\xe5", "push ebp; mov ebp, esp"),  # x86
+            (b"\x48\x83\xec", "sub rsp, imm8"),  # x64 leaf
+            (b"\x48\x89\x5c\x24", "mov [rsp+xx], rbx"),  # x64 win
+            (b"\x40\x53\x48\x83\xec", "push rbx; sub rsp, imm8"),  # x64 win
         ]
 
         for pattern, desc in patterns:
@@ -228,12 +234,14 @@ def _scan_function_prologues(
                 idx = data.find(pattern, offset)
                 if idx == -1:
                     break
-                functions.append({
-                    "address": f"0x{base_addr + idx:x}",
-                    "offset": idx,
-                    "pattern": desc,
-                    "confidence": "medium",
-                })
+                functions.append(
+                    {
+                        "address": f"0x{base_addr + idx:x}",
+                        "offset": idx,
+                        "pattern": desc,
+                        "confidence": "medium",
+                    }
+                )
                 offset = idx + 1
 
     elif arch in ("arm", "arm64"):
@@ -250,12 +258,14 @@ def _scan_function_prologues(
                 idx = data.find(pattern, offset)
                 if idx == -1:
                     break
-                functions.append({
-                    "address": f"0x{base_addr + idx:x}",
-                    "offset": idx,
-                    "pattern": desc,
-                    "confidence": "low",
-                })
+                functions.append(
+                    {
+                        "address": f"0x{base_addr + idx:x}",
+                        "offset": idx,
+                        "pattern": desc,
+                        "confidence": "low",
+                    }
+                )
                 offset = idx + 1
 
     # Deduplicate near-identical addresses (within 4 bytes)
@@ -267,7 +277,7 @@ def _scan_function_prologues(
                 deduped.append(f)
         functions = deduped
 
-    return functions[:500]  # Cap
+    return functions
 
 
 # ---------------------------------------------------------------------------
@@ -303,7 +313,7 @@ async def _extract_pdb_symbols(pdb_path: str) -> dict[str, Any]:
     return {
         "pdb_path": pdb_path,
         "symbol_count": len(symbols),
-        "symbols": symbols[:500],
+        "symbols": symbols,
     }
 
 
