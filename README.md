@@ -647,6 +647,20 @@ max_memory_mb = 512
 default_timeout = 60
 max_timeout = 600
 allowed_dirs = ["/home/user/samples", "/tmp/analysis"]
+
+[rate_limit]
+enabled = true
+global_rpm = 120
+per_tool_rpm = 30
+burst_size = 10
+
+[tool_naming]
+namespace = "revula"
+include_legacy_names = false
+
+[execution]
+subprocess_retries = 1
+subprocess_retry_backoff_ms = 250
 ```
 
 ### Environment Variables
@@ -662,6 +676,13 @@ export RZ_DIFF_PATH=/usr/local/bin/rz-diff                  # rizin diff tool
 export MSFVENOM_PATH=/usr/bin/msfvenom                      # metasploit payload generator
 export REVULA_DEFAULT_TIMEOUT=120                            # Subprocess timeout (seconds)
 export REVULA_MAX_MEMORY_MB=1024                             # Memory limit (MB)
+export REVULA_GLOBAL_RPM=240                                 # Global tool-call rate limit
+export REVULA_PER_TOOL_RPM=60                                # Per-tool rate limit
+export REVULA_BURST_SIZE=20                                  # Token bucket burst size
+export REVULA_TOOL_NAMESPACE=revula                          # Public MCP tool prefix
+export REVULA_INCLUDE_LEGACY_TOOL_NAMES=false                # Expose deprecated re_* aliases
+export REVULA_SUBPROCESS_RETRIES=2                           # Retry transient subprocess failures
+export REVULA_SUBPROCESS_RETRY_BACKOFF_MS=400                # Initial retry backoff (ms)
 ```
 
 ---
@@ -764,9 +785,9 @@ src/revula/                     # 19,400+ LOC across 63 Python files
 
 1. **Startup.** `server.py` loads `config.py`, which probes the system for external tools (via `shutil.which`) and Python modules (via `importlib.util.find_spec`). Results are cached in a `ServerConfig` singleton.
 
-2. **Tool Registration.** Each tool file uses `@TOOL_REGISTRY.register()` to declare its name, description, JSON Schema, and async handler. Tools self-register on import.
+2. **Tool Registration.** Each tool file uses `@TOOL_REGISTRY.register()` to declare its name, description, input/output schemas, annotations, and async handler. Tools self-register on import.
 
-3. **Request Dispatch.** When a `tools/call` request arrives, the server looks up the handler in `TOOL_REGISTRY`, validates arguments against the JSON Schema, checks rate limits, checks the result cache, and dispatches to the handler.
+3. **Request Dispatch.** When a `tools/call` request arrives, the server resolves namespaced aliases, validates arguments (Pydantic-first with JSON Schema fallback), checks rate limits, checks cache eligibility, dispatches the handler, and returns protocol-level `isError` metadata.
 
 4. **Subprocess Execution.** All external tool invocations go through `sandbox.safe_subprocess()`, which enforces `shell=False`, sets `RLIMIT_AS` and `RLIMIT_CPU`, validates paths, and captures stdout/stderr.
 
@@ -779,8 +800,8 @@ src/revula/                     # 19,400+ LOC across 63 Python files
 | Component | Purpose | Key Detail |
 |-----------|---------|------------|
 | **ResultCache** | Avoid redundant subprocess calls | LRU, 256 entries, 10-minute TTL |
-| **RateLimiter** | Prevent resource exhaustion | Token-bucket, 120 global / 30 per-tool RPM |
-| **ToolRegistry** | Decorator-based tool dispatch | JSON Schema validation before handler call |
+| **RateLimiter** | Prevent resource exhaustion | Token-bucket with config/env overrides |
+| **ToolRegistry** | Decorator-based tool dispatch | Annotations + strict schema hardening + structured errors |
 | **SessionManager** | Debugger/Frida persistence | Auto-cleanup after 30 min idle |
 | **sandbox.py** | Secure execution layer | `shell=False`, RLIMIT enforcement, path validation |
 
