@@ -1,6 +1,7 @@
 # Core MCP + analysis (always installed)
 mcp>=1.0.0
 jsonschema>=4.20.0
+pydantic>=2.7.0
 capstone>=5.0.0
 lief>=0.14.0
 pefile>=2023.2.7
