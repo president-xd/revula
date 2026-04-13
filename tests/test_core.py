@@ -10,6 +10,7 @@ import json
 import tempfile
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any
 
 import pytest
 
@@ -136,6 +137,52 @@ class TestConfig:
         assert cfg.security.default_timeout == 120
         assert cfg.security.max_timeout == 120
 
+    def test_rate_limit_env_overrides(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from revula import config as config_mod
+
+        monkeypatch.setattr(config_mod, "_load_config_file", lambda: {})
+        monkeypatch.setenv("REVULA_GLOBAL_RPM", "240")
+        monkeypatch.setenv("REVULA_PER_TOOL_RPM", "60")
+        monkeypatch.setenv("REVULA_BURST_SIZE", "20")
+        monkeypatch.setenv("REVULA_RATE_LIMIT_ENABLED", "false")
+
+        cfg = config_mod.load_config()
+        assert cfg.rate_limit.global_rpm == 240
+        assert cfg.rate_limit.per_tool_rpm == 60
+        assert cfg.rate_limit.burst_size == 20
+        assert cfg.rate_limit.enabled is False
+
+    def test_tool_naming_env_overrides(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from revula import config as config_mod
+
+        monkeypatch.setattr(config_mod, "_load_config_file", lambda: {})
+        monkeypatch.setenv("REVULA_TOOL_NAMESPACE", "RevulaX")
+        monkeypatch.setenv("REVULA_INCLUDE_LEGACY_TOOL_NAMES", "true")
+
+        cfg = config_mod.load_config()
+        assert cfg.tool_naming.namespace == "revulax"
+        assert cfg.tool_naming.include_legacy_names is True
+
+    def test_execution_retry_env_overrides(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from revula import config as config_mod
+
+        monkeypatch.setattr(config_mod, "_load_config_file", lambda: {})
+        monkeypatch.setenv("REVULA_SUBPROCESS_RETRIES", "2")
+        monkeypatch.setenv("REVULA_SUBPROCESS_RETRY_BACKOFF_MS", "500")
+
+        cfg = config_mod.load_config()
+        assert cfg.execution.subprocess_retries == 2
+        assert cfg.execution.subprocess_retry_backoff_ms == 500
+
 
 # ---------------------------------------------------------------------------
 # Sandbox Tests
@@ -205,6 +252,32 @@ class TestSandbox:
         assert captured["memory_mb"] == 50
         assert captured["cpu_seconds"] == 1
 
+    def test_safe_subprocess_sync_retries_transient_failures(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from revula import sandbox as sandbox_mod
+
+        security = SecurityConfig(default_timeout=1, max_memory_mb=50, max_timeout=10)
+        execution = SimpleNamespace(subprocess_retries=2, subprocess_retry_backoff_ms=1)
+        monkeypatch.setattr(sandbox_mod, "get_security_config", lambda: security)
+        monkeypatch.setattr(sandbox_mod, "get_execution_config", lambda: execution)
+        monkeypatch.setattr(sandbox_mod.time, "sleep", lambda _s: None)
+
+        attempts = {"count": 0}
+
+        def fake_run(*args: object, **kwargs: object) -> object:
+            attempts["count"] += 1
+            if attempts["count"] < 3:
+                return SimpleNamespace(stdout="", stderr="transient", returncode=1)
+            return SimpleNamespace(stdout="ok\n", stderr="", returncode=0)
+
+        monkeypatch.setattr(sandbox_mod.subprocess, "run", fake_run)
+
+        result = sandbox_mod.safe_subprocess_sync(["echo", "ok"])
+        assert result.success
+        assert attempts["count"] == 3
+
     def test_safe_subprocess_preflight_missing_known_tool(
         self,
         monkeypatch: pytest.MonkeyPatch,
@@ -237,12 +310,14 @@ class TestServerLogging:
     def test_truncate_args_redacts_sensitive_values(self) -> None:
         from revula.server import _truncate_args
 
-        rendered = _truncate_args({
-            "api_key": "supersecret",
-            "tokenValue": "another-secret",
-            "keystore_pass": "android",
-            "normal": "visible",
-        })
+        rendered = _truncate_args(
+            {
+                "api_key": "supersecret",
+                "tokenValue": "another-secret",
+                "keystore_pass": "android",
+                "normal": "visible",
+            }
+        )
         assert "supersecret" not in rendered
         assert "another-secret" not in rendered
         assert "android" not in rendered
@@ -453,6 +528,31 @@ class TestToolRegistry:
         payload = json.loads(result[0]["text"])
         assert payload["error"] is True
         assert "Invalid arguments for tool 'schema_additional_props_test'" in payload["message"]
+        assert "additional properties" in payload["message"].lower()
+
+    @pytest.mark.asyncio
+    async def test_execute_rejects_additional_properties_by_default(self) -> None:
+        registry = ToolRegistry()
+
+        async def handler(args: dict[str, Any]) -> list[dict[str, Any]]:
+            return text_result({"ok": True})
+
+        registry.register(
+            name="schema_auto_additional_props_test",
+            description="schema additionalProperties auto-hardening test",
+            input_schema={
+                "type": "object",
+                "properties": {"path": {"type": "string"}},
+                "required": ["path"],
+            },
+        )(handler)
+
+        result = await registry.execute(
+            "schema_auto_additional_props_test",
+            {"path": "/tmp/a.bin", "extra": "blocked"},
+        )
+        payload = json.loads(result[0]["text"])
+        assert payload["error"] is True
         assert "additional properties" in payload["message"].lower()
 
     @pytest.mark.asyncio
