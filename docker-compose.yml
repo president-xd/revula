@@ -8,7 +8,7 @@ services:
     image: revula:latest
     container_name: revula-stdio
     stdin_open: true
-    tty: true
+    tty: false
     volumes:
       - ./workspace:/workspace
       - revula-data:/root/.revula
