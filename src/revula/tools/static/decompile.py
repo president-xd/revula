@@ -17,10 +17,13 @@ import hashlib
 import logging
 import os
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
 
 from revula.config import CACHE_DIR, GHIDRA_PROJECTS_DIR
-from revula.sandbox import safe_subprocess, validate_binary_path
+from revula.sandbox import safe_subprocess, safe_subprocess_streaming, validate_binary_path
 from revula.tools import TOOL_REGISTRY, error_result, text_result
 
 logger = logging.getLogger(__name__)
@@ -76,9 +79,7 @@ def _find_ghidra_install() -> Path:
         if (p / "Ghidra").is_dir():
             return p
 
-    raise RuntimeError(
-        "Ghidra installation not found. Set GHIDRA_INSTALL_DIR or install to /usr/share/ghidra"
-    )
+    raise RuntimeError("Ghidra installation not found. Set GHIDRA_INSTALL_DIR or install to /usr/share/ghidra")
 
 
 # ---------------------------------------------------------------------------
@@ -95,6 +96,7 @@ async def _decompile_ghidra(
     binary_path: Path,
     function: str,
     binary_hash: str,
+    progress: Callable[[float, float | None, str | None], Awaitable[None]] | None = None,
 ) -> dict[str, Any]:
     """
     Decompile using Ghidra headless.
@@ -128,85 +130,112 @@ async def _decompile_ghidra(
         "-XX:ParallelGCThreads=2",
         "-XX:CICompilerCount=2",
         "-Xmx1500M",
-        "-cp", str(utility_jar),
+        "-cp",
+        str(utility_jar),
         "ghidra.Ghidra",
         "ghidra.app.util.headless.AnalyzeHeadless",
     ]
 
     env = dict(os.environ)
+    last_stdout = ""
+    last_stderr = ""
+    last_rc = 0
 
     if not project_exists:
         # Import and analyze binary
         project_dir.mkdir(parents=True, exist_ok=True)
+        if progress is not None:
+            await progress(0.15, 1.0, "Starting Ghidra import + analysis")
 
         cmd = [
             *java_base,
             str(project_dir),
             project_name,
-            "-import", str(binary_path),
+            "-import",
+            str(binary_path),
             "-overwrite",
-            "-scriptPath", scripts_dir,
-            "-postScript", "DecompileFunction.py", function, str(project_dir),
+            "-scriptPath",
+            scripts_dir,
+            "-postScript",
+            "DecompileFunction.py",
+            function,
+            str(project_dir),
         ]
 
-        result = await safe_subprocess(
+        success, last_stdout, last_stderr, last_rc = await _run_streamed_subprocess(
             cmd,
             timeout=300,
             max_memory_mb=65536,
             max_cpu_seconds=600,
             env=env,
+            progress=progress,
+            progress_message="Ghidra analysis in progress",
         )
 
-        if not result.success:
-            combined = (result.stdout or "") + "\n" + (result.stderr or "")
+        if not success:
+            combined = (last_stdout or "") + "\n" + (last_stderr or "")
             # Check if it's just a script error — Ghidra may have still loaded
             if "Revula:" in combined or "/* Function" in combined:
                 pass  # Script produced output despite non-zero exit
             else:
                 # Try basic analysis without the custom script
+                if progress is not None:
+                    await progress(0.35, 1.0, "Retrying with basic Ghidra analysis")
                 cmd_basic = [
                     *java_base,
                     str(project_dir),
                     project_name,
-                    "-import", str(binary_path),
+                    "-import",
+                    str(binary_path),
                     "-overwrite",
                 ]
 
-                result = await safe_subprocess(
+                success, last_stdout, last_stderr, last_rc = await _run_streamed_subprocess(
                     cmd_basic,
                     timeout=300,
                     max_memory_mb=65536,
                     max_cpu_seconds=600,
                     env=env,
+                    progress=progress,
+                    progress_message="Ghidra fallback analysis running",
                 )
 
-                if not result.success:
-                    err_msg = (result.stderr or result.stdout or "unknown error")[:500]
+                if not success:
+                    err_msg = (last_stderr or last_stdout or "unknown error")[:500]
                     raise RuntimeError(f"Ghidra analysis failed: {err_msg}")
     else:
         # Process existing project
         env = dict(os.environ)
+        if progress is not None:
+            await progress(0.2, 1.0, "Using cached Ghidra project")
 
         cmd = [
             *java_base,
             str(project_dir),
             project_name,
-            "-process", binary_path.name,
+            "-process",
+            binary_path.name,
             "-noanalysis",
-            "-scriptPath", scripts_dir,
-            "-postScript", "DecompileFunction.py", function, str(project_dir),
+            "-scriptPath",
+            scripts_dir,
+            "-postScript",
+            "DecompileFunction.py",
+            function,
+            str(project_dir),
         ]
 
-        result = await safe_subprocess(
+        success, last_stdout, last_stderr, last_rc = await _run_streamed_subprocess(
             cmd,
             timeout=120,
             max_memory_mb=65536,
             max_cpu_seconds=300,
             env=env,
+            progress=progress,
+            progress_message="Ghidra decompilation in progress",
         )
 
-        if not result.success:
-            raise RuntimeError(f"Ghidra decompilation failed: {result.stderr[:500]}")
+        if not success:
+            raise RuntimeError(f"Ghidra decompilation failed: {last_stderr[:500]}")
 
     # Look for output file — primary method (most reliable)
     code = ""
@@ -224,13 +253,15 @@ async def _decompile_ghidra(
 
     # Fallback: extract from stdout/stderr (Ghidra println() goes through log4j)
     if not code:
-        combined_output = (result.stdout or "") + "\n" + (result.stderr or "")
+        combined_output = (last_stdout or "") + "\n" + (last_stderr or "")
         code = _extract_decompiled_from_output(combined_output)
 
     if not code or "not captured" in code:
         logger.warning(
             "Ghidra decompilation output not found. rc=%d stdout=%d stderr=%d",
-            result.returncode, len(result.stdout or ""), len(result.stderr or ""),
+            last_rc,
+            len(last_stdout or ""),
+            len(last_stderr or ""),
         )
         code = "(Decompiled output not captured — Ghidra analysis succeeded but script output not found)"
 
@@ -375,6 +406,54 @@ async def _decompile_binja(
     return await loop.run_in_executor(None, _do_binja)
 
 
+async def _run_streamed_subprocess(
+    cmd: list[str],
+    *,
+    timeout: int,
+    max_memory_mb: int,
+    max_cpu_seconds: int,
+    env: dict[str, str],
+    progress: Callable[[float, float | None, str | None], Awaitable[None]] | None,
+    progress_message: str,
+) -> tuple[bool, str, str, int]:
+    """Run a subprocess via streaming API and reconstruct a structured result."""
+    stdout_lines: list[str] = []
+    stderr_lines: list[str] = []
+    exit_code = 0
+    line_counter = 0
+
+    async for line in safe_subprocess_streaming(
+        cmd,
+        timeout=timeout,
+        max_memory_mb=max_memory_mb,
+        max_cpu_seconds=max_cpu_seconds,
+        env=env,
+        include_stderr=True,
+        emit_exit_meta=True,
+    ):
+        if line.startswith("[stderr] "):
+            stderr_lines.append(line.removeprefix("[stderr] "))
+        elif line.startswith("[exit_code] "):
+            try:
+                exit_code = int(line.split(" ", 1)[1])
+            except (ValueError, IndexError):
+                exit_code = -1
+        elif line.startswith("[TIMEOUT]") or line.startswith("[ERROR]"):
+            stderr_lines.append(line)
+            exit_code = -1
+        else:
+            stdout_lines.append(line)
+
+        line_counter += 1
+        if progress is not None and line_counter % 50 == 0:
+            await progress(0.55, 1.0, progress_message)
+
+    success = exit_code == 0 and not any(
+        line.startswith("[TIMEOUT]") or line.startswith("[ERROR]") for line in stderr_lines
+    )
+    return success, "\n".join(stdout_lines), "\n".join(stderr_lines), exit_code
+
+
 # ---------------------------------------------------------------------------
 # Tool registration
 # ---------------------------------------------------------------------------
@@ -415,10 +494,15 @@ async def handle_decompile(arguments: dict[str, Any]) -> list[dict[str, Any]]:
     binary_path_str = arguments["binary_path"]
     function = arguments["function"]
     backend = arguments.get("backend", "auto")
+    progress = arguments.get("__progress__")
+    progress_cb = progress if callable(progress) else None
 
     config = arguments.get("__config__")
     allowed_dirs = config.security.allowed_dirs if config else None
     file_path = validate_binary_path(binary_path_str, allowed_dirs=allowed_dirs)
+
+    if progress_cb is not None:
+        await progress_cb(0.05, 1.0, "Preparing decompilation context")
 
     binary_hash = _get_binary_hash(file_path)
 
@@ -438,6 +522,7 @@ async def handle_decompile(arguments: dict[str, Any]) -> list[dict[str, Any]]:
         else:
             try:
                 import importlib.util
+
                 if importlib.util.find_spec("binaryninja"):
                     backend = "binaryninja"
                 else:
@@ -454,8 +539,15 @@ async def handle_decompile(arguments: dict[str, Any]) -> list[dict[str, Any]]:
                     )
 
     try:
+        if progress_cb is not None:
+            await progress_cb(0.1, 1.0, f"Running backend: {backend}")
         if backend == "ghidra":
-            result = await _decompile_ghidra(file_path, function, binary_hash)
+            result = await _decompile_ghidra(
+                file_path,
+                function,
+                binary_hash,
+                progress=progress_cb,
+            )
         elif backend == "binaryninja":
             result = await _decompile_binja(file_path, function)
         elif backend == "retdec":
@@ -464,6 +556,9 @@ async def handle_decompile(arguments: dict[str, Any]) -> list[dict[str, Any]]:
             return error_result(f"Unknown backend: {backend}")
     except Exception as e:
         return error_result(f"Decompilation failed ({backend}): {e}")
+
+    if progress_cb is not None:
+        await progress_cb(0.95, 1.0, "Packaging decompilation result")
 
     result["binary_path"] = str(file_path)
     result["binary_hash"] = binary_hash
