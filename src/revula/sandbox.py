@@ -18,6 +18,7 @@ import os
 import platform
 import subprocess
 import sys
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
@@ -25,7 +26,7 @@ from typing import TYPE_CHECKING, Literal
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
 
-    from revula.config import SecurityConfig
+    from revula.config import ExecutionConfig, SecurityConfig
 
 logger = logging.getLogger(__name__)
 
@@ -75,8 +76,7 @@ class SubprocessResult:
         """Raise RuntimeError if the process failed."""
         if self.timed_out:
             raise TimeoutError(
-                f"Process timed out{' (' + context + ')' if context else ''}: "
-                f"{' '.join(self.command[:3])}"
+                f"Process timed out{' (' + context + ')' if context else ''}: {' '.join(self.command[:3])}"
             )
         if self.returncode != 0:
             msg = f"Process failed (rc={self.returncode})"
@@ -127,17 +127,14 @@ def validate_path(
 
     p = Path(path)
     if path_kind not in {"file", "dir", "any"}:
-        raise ValueError(
-            f"Invalid path_kind '{path_kind}'. Expected one of: file, dir, any."
-        )
+        raise ValueError(f"Invalid path_kind '{path_kind}'. Expected one of: file, dir, any.")
 
     if not p.is_absolute():
         if allow_relative:
             p = Path.cwd() / p
         else:
             raise PathValidationError(
-                f"Path must be absolute: {path}. "
-                "Provide the full path or set allow_relative=True."
+                f"Path must be absolute: {path}. Provide the full path or set allow_relative=True."
             )
 
     # Resolve symlinks FIRST (critical: do NOT check before resolving)
@@ -155,9 +152,7 @@ def validate_path(
     # Check for traversal attempts in the original string
     str_path = str(path)
     if ".." in str_path.split(os.sep):
-        raise PathValidationError(
-            f"Path traversal detected in: {path}. Use absolute paths."
-        )
+        raise PathValidationError(f"Path traversal detected in: {path}. Use absolute paths.")
 
     # Check allowed directories (fail-closed).
     # If no allowlist is provided, load config defaults; if that fails or resolves
@@ -165,15 +160,12 @@ def validate_path(
     if not allowed_dirs:
         try:
             from revula.config import get_config
+
             allowed_dirs = get_config().security.allowed_dirs
         except Exception as e:
-            raise PathValidationError(
-                "Could not load allowed directories from config; refusing access."
-            ) from e
+            raise PathValidationError("Could not load allowed directories from config; refusing access.") from e
     if not allowed_dirs:
-        raise PathValidationError(
-            "No allowed directories configured; refusing path access."
-        )
+        raise PathValidationError("No allowed directories configured; refusing path access.")
     if allowed_dirs:
         in_allowed = False
         for allowed in allowed_dirs:
@@ -191,18 +183,13 @@ def validate_path(
                 continue
 
         if not in_allowed:
-            raise PathValidationError(
-                f"Path {resolved} is not under any allowed directory. "
-                f"Allowed: {allowed_dirs}"
-            )
+            raise PathValidationError(f"Path {resolved} is not under any allowed directory. Allowed: {allowed_dirs}")
 
     # Extension whitelist
     if allowed_extensions and path_kind == "file":
         ext = resolved.suffix.lower()
         if ext not in allowed_extensions:
-            raise PathValidationError(
-                f"Extension '{ext}' not in allowed list: {allowed_extensions}"
-            )
+            raise PathValidationError(f"Extension '{ext}' not in allowed list: {allowed_extensions}")
 
     # Existence and type checks
     if must_exist:
@@ -210,25 +197,19 @@ def validate_path(
             raise PathValidationError(f"Path does not exist: {resolved}")
         if path_kind == "file":
             if not resolved.is_file():
-                raise PathValidationError(
-                    f"Path is not a regular file: {resolved}"
-                )
+                raise PathValidationError(f"Path is not a regular file: {resolved}")
         elif path_kind == "dir":
             if not resolved.is_dir():
                 raise PathValidationError(f"Path is not a directory: {resolved}")
         elif not (resolved.is_file() or resolved.is_dir()):
-            raise PathValidationError(
-                f"Path is not a regular file or directory: {resolved}"
-            )
+            raise PathValidationError(f"Path is not a regular file or directory: {resolved}")
 
         if resolved.is_file():
             # File size limit
             try:
                 size_mb = resolved.stat().st_size / (1024 * 1024)
                 if size_mb > max_size_mb:
-                    raise PathValidationError(
-                        f"File too large: {size_mb:.1f}MB > {max_size_mb}MB limit"
-                    )
+                    raise PathValidationError(f"File too large: {size_mb:.1f}MB > {max_size_mb}MB limit")
             except OSError as e:
                 raise PathValidationError(f"Cannot stat file {resolved}: {e}") from e
 
@@ -302,6 +283,8 @@ def safe_subprocess_sync(
     max_cpu_seconds: int | None = None,
     stdin_data: bytes | None = None,
     capture_output: bool = True,
+    retries: int | None = None,
+    retry_backoff_ms: int | None = None,
 ) -> SubprocessResult:
     """
     Execute a subprocess with sandboxing (synchronous version).
@@ -313,9 +296,7 @@ def safe_subprocess_sync(
     - Command is a list (no shell injection)
     """
     if isinstance(cmd, str):
-        raise TypeError(
-            "safe_subprocess requires list[str], not str - shell injection prevention"
-        )
+        raise TypeError("safe_subprocess requires list[str], not str - shell injection prevention")
 
     if not cmd:
         raise ValueError("Empty command")
@@ -326,6 +307,10 @@ def safe_subprocess_sync(
         timeout=timeout,
         max_memory_mb=max_memory_mb,
         max_cpu_seconds=max_cpu_seconds,
+    )
+    retries, retry_backoff_ms = _resolve_retry_policy(
+        retries=retries,
+        retry_backoff_ms=retry_backoff_ms,
     )
 
     preflight_error = _preflight_external_tool(cmd[0])
@@ -355,55 +340,78 @@ def safe_subprocess_sync(
             raise PathValidationError(f"Working directory does not exist: {cwd}")
 
     logger.debug("Executing: %s (timeout=%ds, mem=%dMB)", effective_cmd[:3], timeout, max_memory_mb)
+    attempt = 0
+    max_attempts = retries + 1
+    last_result: SubprocessResult | None = None
 
-    try:
-        proc = subprocess.run(
-            effective_cmd,
-            capture_output=capture_output,
-            timeout=timeout,
-            cwd=str(cwd) if cwd else None,
-            env=proc_env,
-            preexec_fn=preexec,
-            shell=False,  # NEVER shell=True
-            stdin=subprocess.PIPE if stdin_data else subprocess.DEVNULL,
-            input=stdin_data if stdin_data else None,
-            encoding="utf-8",
-            errors="replace",
-        )
+    while attempt < max_attempts:
+        attempt += 1
+        try:
+            proc = subprocess.run(
+                effective_cmd,
+                capture_output=capture_output,
+                timeout=timeout,
+                cwd=str(cwd) if cwd else None,
+                env=proc_env,
+                preexec_fn=preexec,
+                shell=False,  # NEVER shell=True
+                stdin=subprocess.PIPE if stdin_data else subprocess.DEVNULL,
+                input=stdin_data if stdin_data else None,
+                encoding="utf-8",
+                errors="replace",
+            )
 
-        return SubprocessResult(
-            stdout=proc.stdout or "",
-            stderr=proc.stderr or "",
-            returncode=proc.returncode,
-            timed_out=False,
-            command=cmd,
-        )
+            last_result = SubprocessResult(
+                stdout=proc.stdout or "",
+                stderr=proc.stderr or "",
+                returncode=proc.returncode,
+                timed_out=False,
+                command=cmd,
+            )
+        except subprocess.TimeoutExpired as e:
+            logger.warning("Process timed out after %ds: %s", timeout, effective_cmd[:3])
+            last_result = SubprocessResult(
+                stdout=e.stdout or "" if isinstance(e.stdout, str) else "",
+                stderr=e.stderr or "" if isinstance(e.stderr, str) else "",
+                returncode=-1,
+                timed_out=True,
+                command=cmd,
+            )
+        except FileNotFoundError:
+            return SubprocessResult(
+                stdout="",
+                stderr=f"Command not found: {cmd[0]}",
+                returncode=-1,
+                timed_out=False,
+                command=cmd,
+            )
+        except PermissionError:
+            return SubprocessResult(
+                stdout="",
+                stderr=f"Permission denied: {cmd[0]}",
+                returncode=-1,
+                timed_out=False,
+                command=cmd,
+            )
 
-    except subprocess.TimeoutExpired as e:
-        logger.warning("Process timed out after %ds: %s", timeout, effective_cmd[:3])
-        return SubprocessResult(
-            stdout=e.stdout or "" if isinstance(e.stdout, str) else "",
-            stderr=e.stderr or "" if isinstance(e.stderr, str) else "",
-            returncode=-1,
-            timed_out=True,
-            command=cmd,
+        if last_result.success:
+            return last_result
+        if attempt >= max_attempts or not _is_retryable_result(last_result):
+            break
+
+        sleep_s = (retry_backoff_ms / 1000.0) * (2 ** (attempt - 1))
+        logger.warning(
+            "Subprocess failed (attempt %d/%d, rc=%d). Retrying in %.2fs: %s",
+            attempt,
+            max_attempts,
+            last_result.returncode,
+            sleep_s,
+            effective_cmd[:3],
         )
-    except FileNotFoundError:
-        return SubprocessResult(
-            stdout="",
-            stderr=f"Command not found: {cmd[0]}",
-            returncode=-1,
-            timed_out=False,
-            command=cmd,
-        )
-    except PermissionError:
-        return SubprocessResult(
-            stdout="",
-            stderr=f"Permission denied: {cmd[0]}",
-            returncode=-1,
-            timed_out=False,
-            command=cmd,
-        )
+        time.sleep(sleep_s)
+
+    assert last_result is not None
+    return last_result
 
 
 async def safe_subprocess(
@@ -415,6 +423,8 @@ async def safe_subprocess(
     max_memory_mb: int | None = None,
     max_cpu_seconds: int | None = None,
     stdin_data: bytes | None = None,
+    retries: int | None = None,
+    retry_backoff_ms: int | None = None,
 ) -> SubprocessResult:
     """
     Execute a subprocess with sandboxing (async version).
@@ -432,6 +442,8 @@ async def safe_subprocess(
             max_memory_mb=max_memory_mb,
             max_cpu_seconds=max_cpu_seconds,
             stdin_data=stdin_data,
+            retries=retries,
+            retry_backoff_ms=retry_backoff_ms,
         ),
     )
 
@@ -444,6 +456,8 @@ async def safe_subprocess_streaming(
     env: dict[str, str] | None = None,
     max_memory_mb: int | None = None,
     max_cpu_seconds: int | None = None,
+    include_stderr: bool = True,
+    emit_exit_meta: bool = True,
 ) -> AsyncGenerator[str, None]:
     """
     Execute a subprocess and yield stdout lines as they arrive.
@@ -500,15 +514,26 @@ async def safe_subprocess_streaming(
         await proc.wait()
         await stderr_task
 
+        if include_stderr and stderr_lines:
+            for stderr_line in stderr_lines:
+                yield f"[stderr] {stderr_line.rstrip()}"
+
+        if emit_exit_meta:
+            yield f"[exit_code] {proc.returncode}"
+
     except TimeoutError:
         proc.kill()
         await proc.wait()
         yield f"[TIMEOUT] Process killed after {timeout}s"
+        if emit_exit_meta:
+            yield "[exit_code] -1"
 
     except Exception as e:
         proc.kill()
         await proc.wait()
         yield f"[ERROR] {e}"
+        if emit_exit_meta:
+            yield "[exit_code] -1"
 
 
 def get_security_config() -> SecurityConfig:
@@ -516,6 +541,19 @@ def get_security_config() -> SecurityConfig:
     from revula.config import get_config
 
     return get_config().security
+
+
+def get_execution_config() -> ExecutionConfig:
+    """Get execution config from global config (lazy import to avoid circular)."""
+    from revula.config import ExecutionConfig, get_config
+
+    config = get_config()
+    execution = getattr(config, "execution", None)
+    if isinstance(execution, ExecutionConfig):
+        return execution
+    if execution is None:
+        return ExecutionConfig()
+    return ExecutionConfig()
 
 
 def _resolve_security_limits(
@@ -542,6 +580,40 @@ def _resolve_security_limits(
     effective_cpu = min(effective_cpu, security.max_timeout)
 
     return effective_timeout, effective_memory, effective_cpu
+
+
+def _resolve_retry_policy(
+    *,
+    retries: int | None,
+    retry_backoff_ms: int | None,
+) -> tuple[int, int]:
+    """Resolve subprocess retry policy from explicit args or global execution config."""
+    execution = get_execution_config()
+    effective_retries = execution.subprocess_retries if retries is None else int(retries)
+    if effective_retries < 0:
+        raise ValueError("retries must be >= 0")
+
+    effective_backoff = execution.subprocess_retry_backoff_ms if retry_backoff_ms is None else int(retry_backoff_ms)
+    if effective_backoff <= 0:
+        raise ValueError("retry_backoff_ms must be > 0")
+
+    return effective_retries, effective_backoff
+
+
+def _is_retryable_result(result: SubprocessResult) -> bool:
+    """Return True when subprocess failures are likely transient and worth retrying."""
+    if result.success:
+        return False
+    if result.timed_out:
+        return True
+    non_retry_markers = (
+        "Command not found:",
+        "Permission denied:",
+        "Required external tool",
+    )
+    if any(result.stderr.startswith(marker) for marker in non_retry_markers):
+        return False
+    return result.returncode != 0
 
 
 def _preflight_external_tool(command: str) -> str | None:
