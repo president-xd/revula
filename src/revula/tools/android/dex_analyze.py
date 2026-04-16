@@ -17,7 +17,7 @@ from collections import Counter
 from typing import Any
 
 from revula.sandbox import validate_binary_path
-from revula.tools import TOOL_REGISTRY, text_result
+from revula.tools import TOOL_REGISTRY, error_result, text_result
 
 logger = logging.getLogger(__name__)
 
@@ -444,12 +444,31 @@ async def handle_dex_analyze(arguments: dict[str, Any]) -> list[dict[str, Any]]:
         result = _analyze_dex_fallback(str(file_path))
         result["analyzer"] = "fallback"
 
-    # Apply string filter
+    # Apply string filter. Caller-supplied regex is sized-capped and compiled
+    # defensively to mitigate catastrophic backtracking / ReDoS; oversized
+    # candidate strings are skipped so a small regex cannot be weaponised by a
+    # pathological input either.
     if string_filter:
-        pattern = re.compile(string_filter, re.IGNORECASE)
+        if not isinstance(string_filter, str) or len(string_filter) > 512:
+            return error_result("string_filter must be a string ≤512 chars")
+        try:
+            pattern = re.compile(string_filter, re.IGNORECASE)
+        except re.error as e:
+            return error_result(f"Invalid string_filter regex: {e}")
+
+        max_candidate_len = 4096
         for key in ["url_strings", "ip_strings"]:
             if key in result:
-                result[key] = [s for s in result[key] if pattern.search(s)]
+                filtered: list[str] = []
+                for s in result[key]:
+                    if not isinstance(s, str) or len(s) > max_candidate_len:
+                        continue
+                    try:
+                        if pattern.search(s):
+                            filtered.append(s)
+                    except re.error:
+                        continue
+                result[key] = filtered
 
     # Remove classes if not requested (large output)
     if not include_classes and "classes" in result:
