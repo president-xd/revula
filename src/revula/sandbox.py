@@ -333,11 +333,15 @@ def safe_subprocess_sync(
     # Build preexec_fn for resource limits
     preexec = _make_preexec_fn(max_memory_mb, max_cpu_seconds)
 
-    # Validate cwd if provided
+    # Validate cwd if provided. The error message intentionally omits the
+    # full path — leaking the cwd back to the caller discloses the host's
+    # layout (home dirs, project roots). Callers that need detail can
+    # inspect server logs.
     if cwd:
         cwd = Path(cwd)
         if not cwd.is_dir():
-            raise PathValidationError(f"Working directory does not exist: {cwd}")
+            logger.warning("safe_subprocess cwd does not exist: %s", cwd)
+            raise PathValidationError("Working directory does not exist")
 
     logger.debug("Executing: %s (timeout=%ds, mem=%dMB)", effective_cmd[:3], timeout, max_memory_mb)
     attempt = 0
