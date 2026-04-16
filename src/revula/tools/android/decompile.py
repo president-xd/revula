@@ -438,8 +438,30 @@ async def handle_smali_patch(arguments: dict[str, Any]) -> list[dict[str, Any]]:
 
     if content != original:
         if backup:
-            bak_path = str(file_path) + ".bak"
-            Path(bak_path).write_text(original)
+            # Open the backup path with O_NOFOLLOW | O_EXCL so a pre-existing
+            # symlink (or hardlink race) cannot redirect the write to another
+            # file the process is allowed to clobber. If a file already exists
+            # at that exact path we remove it first (but only if it's a
+            # regular file we own), since .bak overwrite is the expected
+            # behaviour.
+            bak_path = Path(str(file_path) + ".bak")
+            try:
+                st = os.lstat(bak_path)
+                import stat as _stat
+                if not _stat.S_ISREG(st.st_mode):
+                    return error_result(
+                        f"Refusing to write backup: {bak_path} exists and is not a regular file"
+                    )
+                os.unlink(bak_path)
+            except FileNotFoundError:
+                pass
+            fd = os.open(
+                str(bak_path),
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                0o600,
+            )
+            with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                fh.write(original)
 
         file_path.write_text(content)
 
