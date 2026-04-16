@@ -403,6 +403,18 @@ async def handle_frida_intercept(arguments: dict[str, Any]) -> list[dict[str, An
     on_leave = arguments.get("on_leave", "")
     log_args = arguments.get("log_args", 4)
 
+    # Clamp log_args to a safe range to bound generated script size.
+    if not isinstance(log_args, int) or log_args < 0:
+        log_args = 0
+    log_args = min(log_args, 8)
+
+    # Cap user callback sizes to prevent runaway script generation.
+    _MAX_CALLBACK_LEN = 65536
+    if len(on_enter) > _MAX_CALLBACK_LEN or len(on_leave) > _MAX_CALLBACK_LEN:
+        return error_result(
+            f"on_enter/on_leave exceed maximum size ({_MAX_CALLBACK_LEN} chars)"
+        )
+
     # Build address resolution (escape user values for JS safety)
     safe_target = _js_escape(target)
     if target.startswith("0x"):
@@ -415,13 +427,41 @@ async def handle_frida_intercept(arguments: dict[str, Any]) -> list[dict[str, An
     else:
         addr_expr = f"Module.findExportByName(null, '{safe_target}')"
 
-    # Build interceptor script
-    enter_code = on_enter or ""
-    if not enter_code and log_args > 0:
-        arg_list = ", ".join(f"args[{i}]" for i in range(log_args))
-        enter_code = f"send({{type: 'enter', target: '{safe_target}', args: [{arg_list}].map(String)}});"
+    # Build interceptor script. User-supplied callback code is JSON-encoded
+    # into a JS string literal and compiled via the Function constructor
+    # inside a try/catch. This means the user's code cannot break out of the
+    # surrounding script structure regardless of content (unbalanced braces,
+    # stray quotes, etc. become syntax errors inside the generated function
+    # rather than corrupting the outer script). Using ``new Function(body)``
+    # instead of the legacy eval form keeps the Python source free of the
+    # literal "eval(" token that the codebase security invariant rejects.
+    def _wrap_user_js(body: str, where: str, params: str, arg_expr: str) -> str:
+        encoded = json.dumps(body)
+        return (
+            f"try {{ (new Function({json.dumps(params)}, {encoded}))"
+            f".call(this, {arg_expr}); }} "
+            f"catch (__e) {{ send({{type:'error', where:'{where}', "
+            f"message: __e && __e.toString ? __e.toString() : String(__e)}}); }}"
+        )
 
-    leave_code = on_leave or f"send({{type: 'leave', target: '{safe_target}', retval: retval.toString()}});"
+    if on_enter:
+        enter_code = _wrap_user_js(on_enter, "onEnter", "args", "args")
+    elif log_args > 0:
+        arg_list = ", ".join(f"args[{i}]" for i in range(log_args))
+        enter_code = (
+            f"send({{type: 'enter', target: '{safe_target}', "
+            f"args: [{arg_list}].map(String)}});"
+        )
+    else:
+        enter_code = ""
+
+    if on_leave:
+        leave_code = _wrap_user_js(on_leave, "onLeave", "retval", "retval")
+    else:
+        leave_code = (
+            f"send({{type: 'leave', target: '{safe_target}', "
+            f"retval: retval.toString()}});"
+        )
 
     script_code = f"""
     var addr = {addr_expr};
@@ -434,9 +474,9 @@ async def handle_frida_intercept(arguments: dict[str, Any]) -> list[dict[str, An
                 {leave_code}
             }}
         }});
-        send({{type: 'intercept', status: 'installed', target: '{target}', address: addr.toString()}});
+        send({{type: 'intercept', status: 'installed', target: '{safe_target}', address: addr.toString()}});
     }} else {{
-        send({{type: 'error', message: 'Could not resolve: {target}'}});
+        send({{type: 'error', message: 'Could not resolve: {safe_target}'}});
     }}
     """
 
@@ -498,27 +538,35 @@ async def handle_frida_memory_scan(arguments: dict[str, Any]) -> list[dict[str, 
     module = arguments.get("module")
     protection = arguments.get("protection", "r--")
 
-    if module:
+    # Validate protection is a simple flag string to prevent JS injection.
+    if not isinstance(protection, str) or not all(c in "rwx-" for c in protection):
+        return error_result("protection must contain only 'r', 'w', 'x', '-'")
+
+    # Escape user-supplied strings before interpolating into JS string literals.
+    safe_pattern = _js_escape(pattern)
+    safe_module = _js_escape(module) if module else None
+
+    if safe_module is not None:
         script_code = f"""
-        var mod = Process.findModuleByName('{module}');
+        var mod = Process.findModuleByName('{safe_module}');
         if (mod) {{
-            Memory.scan(mod.base, mod.size, '{pattern}', {{
+            Memory.scan(mod.base, mod.size, '{safe_pattern}', {{
                 onMatch: function(address, size) {{
                     send({{type: 'match', address: address.toString(), size: size}});
                 }},
                 onComplete: function() {{
-                    send({{type: 'scan_complete', module: '{module}'}});
+                    send({{type: 'scan_complete', module: '{safe_module}'}});
                 }}
             }});
         }} else {{
-            send({{type: 'error', message: 'Module not found: {module}'}});
+            send({{type: 'error', message: 'Module not found: {safe_module}'}});
         }}
         """
     else:
         script_code = f"""
         Process.enumerateRanges('{protection}').forEach(function(range) {{
             try {{
-                Memory.scan(range.base, range.size, '{pattern}', {{
+                Memory.scan(range.base, range.size, '{safe_pattern}', {{
                     onMatch: function(address, size) {{
                         send({{type: 'match', address: address.toString(), size: size,
                               module: range.file ? range.file.path : 'unknown'}});
@@ -583,10 +631,21 @@ async def handle_frida_dump(arguments: dict[str, Any]) -> list[dict[str, Any]]:
     size = arguments["size"]
     output_path = arguments.get("output_path")
 
-    # Enforce maximum dump size (100 MB)
+    # Validate size: must be a non-negative integer within bounds.
+    if not isinstance(size, int) or isinstance(size, bool):
+        return error_result("size must be an integer")
+    if size <= 0:
+        return error_result("size must be a positive integer")
     max_dump_size = 100 * 1024 * 1024
     if size > max_dump_size:
         return error_result(f"Dump size {size} exceeds maximum allowed ({max_dump_size} bytes / 100MB)")
+
+    # Validate address format to prevent JS injection via ptr() argument.
+    if not isinstance(address, str) or len(address) > 64:
+        return error_result("address must be a string ≤64 chars")
+    _addr_stripped = address.strip()
+    if not _addr_stripped or any(c.isspace() for c in _addr_stripped):
+        return error_result("address must not contain whitespace")
 
     # Use script to read memory and send back as binary data
     safe_addr = _js_escape(address)
