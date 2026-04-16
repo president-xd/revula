@@ -37,6 +37,12 @@ def _resolve_community_rules_dir() -> Path:
 # ---------------------------------------------------------------------------
 
 
+# Maximum size (bytes) of a caller-supplied inline YARA ruleset. The yara
+# compiler is recursive and memory-hungry; without this cap a single tool
+# invocation can allocate unbounded memory and wedge the process.
+_MAX_INLINE_RULES_BYTES = 512 * 1024  # 512 KB
+
+
 def _compile_rules(
     rules_path: str | None = None,
     rules_inline: str | None = None,
@@ -47,6 +53,13 @@ def _compile_rules(
     import yara
 
     if rules_inline:
+        if not isinstance(rules_inline, str):
+            raise ValueError("rules_inline must be a string")
+        if len(rules_inline.encode("utf-8", errors="replace")) > _MAX_INLINE_RULES_BYTES:
+            raise ValueError(
+                f"rules_inline exceeds maximum size "
+                f"({_MAX_INLINE_RULES_BYTES} bytes / 512 KB)"
+            )
         return yara.compile(source=rules_inline)
 
     if rules_path:
