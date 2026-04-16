@@ -23,6 +23,101 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
+# GDB/MI Input sanitization
+# ---------------------------------------------------------------------------
+
+# Characters that terminate or corrupt a GDB/MI command line. Any of these in
+# a user-supplied argument would let a caller inject additional commands.
+_MI_FORBIDDEN_CHARS = ("\n", "\r", "\x00")
+
+# Conservative allowlist for addresses / numeric-like expressions. GDB accepts
+# register names (``$rsp``), symbol names (``main+0x20``), and hex/decimal
+# literals — we allow identifier characters, digits, a small set of arithmetic
+# operators, and nothing else, which blocks quoting/newline tricks without
+# breaking legitimate expressions.
+_MI_ADDRESS_ALLOWED = set(
+    "abcdefghijklmnopqrstuvwxyz"
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    "0123456789"
+    "+-*/()$._:"
+)
+
+
+def _mi_check_no_newlines(value: str, field: str) -> None:
+    """Reject control characters that can break out of the MI command line."""
+    if not isinstance(value, str):
+        raise ValueError(f"{field} must be a string")
+    for ch in _MI_FORBIDDEN_CHARS:
+        if ch in value:
+            raise ValueError(
+                f"{field} contains a forbidden control character "
+                f"(newline/null); refusing to pass to GDB/MI"
+            )
+
+
+def _mi_quote_c_string(value: str) -> str:
+    """Quote a Python string as a GDB/MI c-string literal.
+
+    GDB/MI c-strings use C escape rules: backslash, double quote, and the
+    standard control-character escapes. Any user input that ends up inside an
+    MI ``"..."`` literal MUST go through this helper so that stray quotes or
+    newlines cannot terminate the literal and inject extra commands.
+    """
+    _mi_check_no_newlines(value, "mi c-string")
+    out: list[str] = ['"']
+    for ch in value:
+        if ch == "\\":
+            out.append("\\\\")
+        elif ch == '"':
+            out.append('\\"')
+        elif ch == "\t":
+            out.append("\\t")
+        elif ord(ch) < 0x20 or ord(ch) == 0x7F:
+            out.append(f"\\{ord(ch):03o}")
+        else:
+            out.append(ch)
+    out.append('"')
+    return "".join(out)
+
+
+def _mi_validate_address(value: str, field: str = "address") -> str:
+    """Validate an address/register/simple-expression token for MI use.
+
+    Rejects whitespace, quotes, and anything outside the allowlist so the
+    token can be interpolated into a command line without quoting.
+    """
+    if not isinstance(value, str):
+        raise ValueError(f"{field} must be a string")
+    v = value.strip()
+    if not v:
+        raise ValueError(f"{field} must not be empty")
+    if len(v) > 128:
+        raise ValueError(f"{field} exceeds 128 chars")
+    if any(c not in _MI_ADDRESS_ALLOWED for c in v):
+        raise ValueError(f"{field} contains disallowed characters")
+    return v
+
+
+_HEX_ALLOWED = set("0123456789abcdefABCDEF")
+
+
+def _mi_validate_hex_bytes(value: str) -> str:
+    """Validate hex-bytes payload (even length, only hex digits)."""
+    if not isinstance(value, str):
+        raise ValueError("hex_bytes must be a string")
+    stripped = value.replace(" ", "")
+    if not stripped:
+        raise ValueError("hex_bytes must not be empty")
+    if len(stripped) % 2 != 0:
+        raise ValueError("hex_bytes must have an even number of hex digits")
+    if any(c not in _HEX_ALLOWED for c in stripped):
+        raise ValueError("hex_bytes must contain only hex digits")
+    if len(stripped) > 2 * 1024 * 1024:  # cap at 1 MB
+        raise ValueError("hex_bytes exceeds 1 MB")
+    return stripped
+
+
+# ---------------------------------------------------------------------------
 # GDB/MI Output Parser
 # ---------------------------------------------------------------------------
 
@@ -375,9 +470,16 @@ async def handle_debugger_launch(arguments: dict[str, Any]) -> list[dict[str, An
     # Wait for initial prompt
     await asyncio.sleep(0.5)
 
-    # Set arguments if provided
+    # Set arguments if provided. Each arg is passed as a quoted MI c-string
+    # so newlines, quotes, and backslashes cannot inject extra MI commands.
     if args:
-        await gdb_session.send_command(f"-exec-arguments {' '.join(args)}")
+        try:
+            quoted_args = " ".join(_mi_quote_c_string(str(a)) for a in args)
+        except ValueError as e:
+            process.kill()
+            await process.wait()
+            return error_result(f"Invalid program argument: {e}")
+        await gdb_session.send_command(f"-exec-arguments {quoted_args}")
 
     # Break on entry
     if break_on_entry:
@@ -503,16 +605,26 @@ async def handle_bp_set(arguments: dict[str, Any]) -> list[dict[str, Any]]:
     bp_type = arguments.get("type", "breakpoint")
     commands = arguments.get("commands", [])
 
+    # Location is passed as an MI c-string so callers cannot close the
+    # literal with a stray quote or smuggle newlines to inject commands.
+    try:
+        _mi_check_no_newlines(location, "location")
+        quoted_location = _mi_quote_c_string(location)
+        quoted_condition = _mi_quote_c_string(condition) if condition else None
+    except ValueError as e:
+        return error_result(f"Invalid breakpoint argument: {e}")
+
     if bp_type == "breakpoint":
         cmd = "-break-insert"
         if hardware:
             cmd += " -h"
-        if condition:
-            cmd += f' -c "{condition}"'
-        cmd += f" {location}"
+        if quoted_condition is not None:
+            cmd += f" -c {quoted_condition}"
+        cmd += f" {quoted_location}"
     elif bp_type.startswith("watchpoint"):
         access = "a" if bp_type == "watchpoint_rw" else "r" if bp_type == "watchpoint_read" else ""
-        cmd = f"-break-watch {'-a ' if access == 'a' else '-r ' if access == 'r' else ''}{location}"
+        access_flag = "-a " if access == "a" else "-r " if access == "r" else ""
+        cmd = f"-break-watch {access_flag}{quoted_location}"
     else:
         return error_result(f"Unknown breakpoint type: {bp_type}")
 
@@ -521,10 +633,19 @@ async def handle_bp_set(arguments: dict[str, Any]) -> list[dict[str, Any]]:
     bp_info = result.get("data", {}).get("bkpt", {})
     bp_number = bp_info.get("number", session.next_bp_id())
 
-    # Set commands on hit
+    # Set commands on hit. Each command is a c-string literal; reject any
+    # that carry newlines or cannot be safely quoted.
     if commands and bp_number:
+        try:
+            bp_num_int = int(bp_number)
+        except (TypeError, ValueError):
+            return error_result(f"Invalid breakpoint number returned by GDB: {bp_number!r}")
         for c in commands:
-            await gdb.send_command(f'-break-commands {bp_number} "{c}"')
+            try:
+                quoted_cmd = _mi_quote_c_string(str(c))
+            except ValueError as e:
+                return error_result(f"Invalid breakpoint command: {e}")
+            await gdb.send_command(f"-break-commands {bp_num_int} {quoted_cmd}")
 
     session.breakpoints[int(bp_number)] = {
         "location": location,
@@ -720,7 +841,18 @@ async def handle_memory_read(arguments: dict[str, Any]) -> list[dict[str, Any]]:
     address = arguments["address"]
     length = arguments.get("length", 256)
 
-    result = await gdb.send_command(f"-data-read-memory-bytes {address} {length}")
+    try:
+        safe_address = _mi_validate_address(address)
+    except ValueError as e:
+        return error_result(f"Invalid address: {e}")
+    if not isinstance(length, int) or isinstance(length, bool) or length <= 0:
+        return error_result("length must be a positive integer")
+    if length > 64 * 1024 * 1024:
+        return error_result("length exceeds 64 MB")
+
+    result = await gdb.send_command(
+        f"-data-read-memory-bytes {safe_address} {length}"
+    )
     memory = result.get("data", {}).get("memory", [])
 
     return text_result({
@@ -750,12 +882,18 @@ async def handle_memory_write(arguments: dict[str, Any]) -> list[dict[str, Any]]
     _, gdb = await _get_or_create_gdb_session(session_manager, arguments["session_id"])
 
     address = arguments["address"]
-    hex_bytes = arguments["hex_bytes"].replace(" ", "")
-    " ".join(f"0x{hex_bytes[i:i+2]}" for i in range(0, len(hex_bytes), 2))
+    raw_hex = arguments["hex_bytes"]
 
-    # Use MI command for byte writing
+    try:
+        safe_address = _mi_validate_address(address)
+        hex_bytes = _mi_validate_hex_bytes(raw_hex)
+    except ValueError as e:
+        return error_result(f"Invalid memory write argument: {e}")
+
+    # Hex-bytes contain only [0-9a-fA-F] and the quoted address is allowlisted,
+    # so neither can break out of the MI command line.
     result = await gdb.send_command(
-        f'-data-write-memory-bytes {address} "{hex_bytes}"'
+        f'-data-write-memory-bytes {safe_address} "{hex_bytes}"'
     )
 
     return text_result({"address": address, "bytes_written": len(hex_bytes) // 2, "result": result})
@@ -805,7 +943,16 @@ async def handle_evaluate(arguments: dict[str, Any]) -> list[dict[str, Any]]:
     _, gdb = await _get_or_create_gdb_session(session_manager, arguments["session_id"])
 
     expr = arguments["expression"]
-    result = await gdb.send_command(f'-data-evaluate-expression "{expr}"')
+    try:
+        quoted_expr = _mi_quote_c_string(expr)
+    except ValueError as e:
+        return error_result(f"Invalid expression: {e}")
+
+    # Cap expression length to keep the MI command reasonable.
+    if len(expr) > 4096:
+        return error_result("expression exceeds 4096 chars")
+
+    result = await gdb.send_command(f"-data-evaluate-expression {quoted_expr}")
 
     return text_result({
         "expression": expr,
