@@ -40,6 +40,7 @@ unicorn>=2.0.0
 # Optional — exploit helper CLIs
 ROPGadget
 ropper
+pwntools>=4.13.0
 
 # NOTE: angr is intentionally omitted from this flat requirements file because it's ~2 GB.
 #   Use extras when desired: pip install "revula[angr]" (or revula[full]).
