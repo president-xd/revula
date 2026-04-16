@@ -143,7 +143,8 @@ RUN pip install --no-cache-dir \
     semgrep \
     quark-engine \
     ROPGadget \
-    ropper
+    ropper \
+    pwntools>=4.13.0
 
 # =============================================================================
 # Stage 2: Runtime - Complete production image with all tools
@@ -190,6 +191,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     binutils-multiarch \
     binwalk \
     checksec \
+    # cpp: required by pwnlib.asm() to preprocess shellcraft source
+    cpp \
     apksigner \
     mono-utils \
     mono-devel \
@@ -337,6 +340,9 @@ COPY LICENSE /app/
 
 # Install the application
 RUN pip install --no-cache-dir -e .
+
+# Smoke-test that critical optional python deps survived the venv copy
+RUN python -c "import pwnlib, pwnlib.asm, pwnlib.elf.elf, pwnlib.shellcraft, pwnlib.util.cyclic; print('pwnlib', pwnlib.__version__)"
 
 # Create revula config directory for root
 RUN mkdir -p /root/.revula/cache /root/.revula/ghidra_projects /root/.revula/yara_rules
