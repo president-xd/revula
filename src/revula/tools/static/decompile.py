@@ -237,18 +237,47 @@ async def _decompile_ghidra(
         if not success:
             raise RuntimeError(f"Ghidra decompilation failed: {last_stderr[:500]}")
 
-    # Look for output file — primary method (most reliable)
+    # Look for output file — primary method (most reliable).
+    # We only accept candidates under directories we control (the project dir
+    # and its parent). The previous implementation also consulted a predictable
+    # ``/tmp/<function>_decompiled.c`` path, which a local attacker could
+    # pre-create as a symlink pointing to an arbitrary file the process can
+    # read (information disclosure / symlink race). That location has been
+    # removed, and every candidate is opened with O_NOFOLLOW so a symlink at
+    # the expected location is refused rather than followed.
     code = ""
     output_file = project_dir / f"{function}_decompiled.c"
 
-    # Check all possible output locations
+    def _read_regular_file_nofollow(path: Path) -> str | None:
+        try:
+            fd = os.open(str(path), os.O_RDONLY | os.O_NOFOLLOW)
+        except FileNotFoundError:
+            return None
+        except OSError as err:
+            logger.warning(
+                "Refusing to read decompiler output at %s: %s", path, err
+            )
+            return None
+        try:
+            st = os.fstat(fd)
+            import stat as _stat
+            if not _stat.S_ISREG(st.st_mode):
+                logger.warning("Decompiler output %s is not a regular file", path)
+                return None
+            with os.fdopen(fd, "r", encoding="utf-8", errors="replace") as fh:
+                fd = -1  # ownership transferred
+                return fh.read()
+        finally:
+            if fd >= 0:
+                os.close(fd)
+
     for candidate in [
         output_file,
-        Path("/tmp") / f"{function}_decompiled.c",
         project_dir.parent / f"{function}_decompiled.c",
     ]:
-        if candidate.exists():
-            code = candidate.read_text()
+        data = _read_regular_file_nofollow(candidate)
+        if data is not None:
+            code = data
             break
 
     # Fallback: extract from stdout/stderr (Ghidra println() goes through log4j)
@@ -562,5 +591,25 @@ async def handle_decompile(arguments: dict[str, Any]) -> list[dict[str, Any]]:
 
     result["binary_path"] = str(file_path)
     result["binary_hash"] = binary_hash
+
+    # Cap decompiled source size so a pathological function cannot exhaust
+    # MCP transport buffers / client memory. 5 MB is well above any legitimate
+    # single-function decompilation; anything larger is truncated with a
+    # marker so callers know to re-run with a narrower target.
+    max_decompiled_bytes = 5 * 1024 * 1024
+    code = result.get("decompiled_code")
+    if isinstance(code, str):
+        encoded = code.encode("utf-8", errors="replace")
+        if len(encoded) > max_decompiled_bytes:
+            truncated = encoded[:max_decompiled_bytes].decode(
+                "utf-8", errors="replace"
+            )
+            result["decompiled_code"] = (
+                truncated
+                + f"\n\n/* ... truncated: output exceeded "
+                f"{max_decompiled_bytes} bytes ... */\n"
+            )
+            result["truncated"] = True
+            result["original_size_bytes"] = len(encoded)
 
     return text_result(result)
