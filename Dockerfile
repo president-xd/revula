@@ -161,6 +161,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     GHIDRA_INSTALL_DIR=/opt/ghidra \
     JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 \
     CFR_VERSION=0.152 \
+    VINEFLOWER_VERSION=1.10.1 \
     RADARE2_VERSION=6.1.2 \
     RIZIN_VERSION=0.8.2 \
     DYNAMORIO_VERSION=11.91.20545 \
@@ -176,8 +177,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libcapstone4 \
     libssl3 \
     file \
-    # Java for Ghidra and Android tools
-    openjdk-17-jre-headless \
+    # Java for Ghidra, Android tools, javap, jarsigner, keytool
+    openjdk-17-jdk-headless \
     # Debugging tools
     gdb \
     gdb-multiarch \
@@ -258,6 +259,11 @@ RUN set -eux; \
     mv /tmp/cfr.jar /opt/cfr.jar; \
     printf '#!/usr/bin/env bash\nexec java -jar /opt/cfr.jar "$@"\n' > /usr/local/bin/cfr; \
     chmod +x /usr/local/bin/cfr; \
+    curl -fsSL -o /opt/vineflower.jar "https://repo1.maven.org/maven2/org/vineflower/vineflower/${VINEFLOWER_VERSION}/vineflower-${VINEFLOWER_VERSION}.jar"; \
+    printf '#!/usr/bin/env bash\nexec java -jar /opt/vineflower.jar "$@"\n' > /usr/local/bin/fernflower; \
+    chmod +x /usr/local/bin/fernflower; \
+    ln -sf /usr/local/bin/fernflower /usr/local/bin/java-decompiler; \
+    ln -sf /usr/local/bin/fernflower /usr/local/bin/vineflower; \
     one_gadget_bin="$(command -v one_gadget || true)"; \
     if [ -z "${one_gadget_bin}" ]; then \
         one_gadget_bin="$(find /var/lib/gems -type f -name one_gadget 2>/dev/null | head -1 || true)"; \
@@ -286,6 +292,11 @@ RUN set -eux; \
     command -v rz-diff >/dev/null; \
     command -v upx >/dev/null; \
     command -v cfr >/dev/null; \
+    command -v fernflower >/dev/null; \
+    command -v javap >/dev/null; \
+    command -v jarsigner >/dev/null; \
+    command -v keytool >/dev/null; \
+    command -v capinfos >/dev/null; \
     (command -v llvm-pdbutil >/dev/null || command -v llvm-pdbutil-19 >/dev/null); \
     PYTHONPATH="/usr/lib/llvm-14/lib/python3/dist-packages:${PYTHONPATH:-}" python -c "import lldb"; \
     curl -fsSL -o /tmp/capa-rules.tar.gz "https://github.com/mandiant/capa-rules/archive/refs/heads/master.tar.gz"; \
