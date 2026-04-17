@@ -73,6 +73,7 @@ ENV_OVERRIDES: dict[str, str] = {
     "OBJDUMP_PATH": "tools.objdump.path",
     "ONE_GADGET_PATH": "tools.one_gadget.path",
     "PDBUTIL_PATH": "tools.pdbutil.path",
+    "PWN_PATH": "tools.pwn.path",
     "QEMU_IMG_PATH": "tools.qemu_img.path",
     "QEMU_SYSTEM_PATH": "tools.qemu_system.path",
     "QEMU_USER_PATH": "tools.qemu_user.path",
@@ -168,6 +169,7 @@ TOOL_BINARIES: dict[str, list[str]] = {
     "smali": ["smali"],
     "tshark": ["tshark"],
     "wasm2wat": ["wasm2wat"],
+    "pwn": ["pwn"],
     "pdbutil": [
         "llvm-pdbutil",
         "llvm-pdbutil-20",
@@ -329,6 +331,7 @@ INSTALL_HINTS: dict[str, str] = {
     "smali": "Install smali assembler: https://github.com/JesusFreke/smali",
     "tshark": "Install tshark: `sudo apt install tshark`",
     "wasm2wat": "Install WABT tools (`wasm2wat`): `sudo apt install wabt`",
+    "pwn": "Install pwntools: `pip install pwntools`",
     "pdbutil": "Install LLVM: `sudo apt install llvm` or `brew install llvm`",
 }
 
@@ -350,6 +353,7 @@ PYTHON_MODULES: dict[str, str] = {
     "uncompyle6": "pip install uncompyle6",
     "semgrep": "pip install semgrep",
     "quark": "pip install quark-engine",
+    "pwnlib": "pip install pwntools",
 }
 
 
