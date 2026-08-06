@@ -64,7 +64,7 @@ def _shannon_entropy(data: bytes) -> float:
 
 def _parse_with_androguard(apk_path: str) -> dict[str, Any]:
     """Parse APK using androguard Python library."""
-    from androguard.core.apk import APK
+    from androguard.core.bytecodes.apk import APK
 
     a = APK(apk_path)
     result: dict[str, Any] = {}
@@ -461,7 +461,7 @@ async def handle_manifest_vulns(arguments: dict[str, Any]) -> list[dict[str, Any
     vulns: list[dict[str, Any]] = []
 
     try:
-        from androguard.core.apk import APK
+        from androguard.core.bytecodes.apk import APK
 
         a = APK(str(file_path))
 
@@ -683,7 +683,7 @@ async def handle_resources(arguments: dict[str, Any]) -> list[dict[str, Any]]:
 
     # Try to get string resources via androguard
     try:
-        from androguard.core.apk import APK
+        from androguard.core.bytecodes.apk import APK
 
         a = APK(str(file_path))
         string_resources = []

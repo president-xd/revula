@@ -412,7 +412,13 @@ class ToolRegistry:
         if pydantic_model is not None:
             try:
                 validated = pydantic_model.model_validate(user_arguments)
-                return None, validated.model_dump()
+                dump = validated.model_dump()
+                # Pydantic fills unprovided optional fields with None, which
+                # defeats handler defaults such as arguments.get(key, default).
+                # Drop None values the user did not explicitly provide.
+                for key in [k for k, v in dump.items() if v is None and k not in user_arguments]:
+                    del dump[key]
+                return None, dump
             except PydanticValidationError as err:
                 first = err.errors()[0]
                 location = "$"

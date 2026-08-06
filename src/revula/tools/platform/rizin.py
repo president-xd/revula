@@ -94,8 +94,8 @@ async def handle_rizin_analyze(arguments: dict[str, Any]) -> list[dict[str, Any]
     action = arguments["action"]
     address = arguments.get("address", "")
     func_name = arguments.get("function_name", "")
-    custom_cmds = arguments.get("custom_commands", [])
-    count = arguments.get("count", 50)
+    custom_cmds = arguments.get("custom_commands") or []
+    count = arguments.get("count") or 50
     config = arguments.get("__config__")
     allowed_dirs = config.security.allowed_dirs if config else None
     file_path = validate_binary_path(binary_path, allowed_dirs=allowed_dirs)
@@ -136,19 +136,20 @@ async def handle_rizin_analyze(arguments: dict[str, Any]) -> list[dict[str, Any]
                 "https://rizin.re or pip install r2pipe"
             )
 
+    target = address or func_name or "main"
     cmd_map = {
-        "info": ["aaa", "ij"],
-        "functions": ["aaa", "aflj"],
+        "info": ["ij"],
+        "functions": ["aaa;aflj"],
         "strings": ["izj"],
         "imports": ["iij"],
         "exports": ["iEj"],
         "sections": ["iSj"],
-        "xrefs_to": ["aaa", f"axtj {address or func_name}"],
-        "xrefs_from": ["aaa", f"axfj {address or func_name}"],
-        "disasm": ["aaa", f"pd {count} @ {address or func_name or 'main'}"],
-        "decompile": ["aaa", f"pdg @ {address or func_name or 'main'}"],
-        "graph": ["aaa", f"agfj @ {address or func_name or 'main'}"],
-        "custom": ["aaa", *custom_cmds],
+        "xrefs_to": [f"aaa;axtj {target}"],
+        "xrefs_from": [f"aaa;axfj {target}"],
+        "disasm": [f"aaa;pd {count} @ {target}"],
+        "decompile": [f"aaa;pdg @ {target}"],
+        "graph": [f"aaa;agfj @ {target}"],
+        "custom": [f"aaa;{cmd}" for cmd in custom_cmds],
     }
 
     commands = cmd_map.get(action, ["aaa", action])

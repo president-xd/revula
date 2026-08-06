@@ -140,9 +140,11 @@ async def handle_decompile(arguments: dict[str, Any]) -> list[dict[str, Any]]:
                 continue
 
         if dec == "jadx":
+            # jadx 1.5.1 uses --single-class (full class name) instead of
+            # --class-name-filter; package-prefix filtering is applied below.
             cmd = [tool_path, "-d", str(out_path), str(file_path)]
-            if class_filter:
-                cmd.extend(["--class-name-filter", class_filter])
+            if class_filter and "*" not in class_filter and "." in class_filter:
+                cmd.extend(["--single-class", class_filter])
             proc = await safe_subprocess(cmd, timeout=300)
             if proc.returncode == 0:
                 used_decompiler = "jadx"
