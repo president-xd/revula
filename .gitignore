@@ -10,6 +10,9 @@ build/
 .eggs/
 .ruff_cache/
 
+# Local pip --target install (persistent deps; rebuilt by scripts/revula_restore.sh)
+deps/
+
 
 # Virtual environments
 .venv/
