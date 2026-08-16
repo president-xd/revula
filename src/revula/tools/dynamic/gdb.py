@@ -347,14 +347,22 @@ class GDBSession:
 
         try:
             async with asyncio.timeout(timeout):
+                waiting_stop = False
                 while True:
                     line_bytes = await self.process.stdout.readline()
                     if not line_bytes:
                         break
 
                     line = line_bytes.decode("utf-8", errors="replace").strip()
-                    if not line or line == "(gdb)":
-                        if result_data.get("type") != "timeout":
+                    if not line:
+                        continue
+
+                    if line == "(gdb)":
+                        # In async MI mode a prompt can arrive between the
+                        # ^running/*running records and the *stopped
+                        # notification. Only treat it as the end of the
+                        # command when we are not waiting for a stop.
+                        if not waiting_stop and result_data.get("type") != "timeout":
                             break
                         continue
 
@@ -362,12 +370,22 @@ class GDBSession:
 
                     if parsed["type"] == "console":
                         console_output.append(parsed.get("text", ""))
-                    elif parsed["type"] == "result":
+                        continue
+                    if parsed["type"] == "exec":
                         result_data = parsed
                         result_data["console"] = console_output
-                    elif parsed["type"] == "exec":
+                        if parsed.get("class") == "running":
+                            waiting_stop = True
+                            continue
+                        # *stopped / *exited / *exit complete the command
+                        break
+                    if parsed["type"] == "result":
                         result_data = parsed
                         result_data["console"] = console_output
+                        if parsed.get("class") == "running":
+                            waiting_stop = True
+                            continue
+                        # ^done / ^error / ^exit complete the command
                         break
 
         except TimeoutError:
@@ -484,6 +502,10 @@ async def handle_debugger_launch(arguments: dict[str, Any]) -> list[dict[str, An
     # Break on entry
     if break_on_entry:
         await gdb_session.send_command("-break-insert main")
+
+    # Start the inferior. With break_on_entry the process stops at main;
+    # otherwise it runs until completion or an explicit stop.
+    await gdb_session.send_command("-exec-run")
 
     # Create session
     session = DebuggerSession(

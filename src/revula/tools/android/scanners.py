@@ -83,6 +83,7 @@ async def handle_semgrep(arguments: dict[str, Any]) -> list[dict[str, Any]]:
     cmd = [
         semgrep,
         "--json",
+        "-j", "1",
         "--config", ruleset,
         target_dir,
     ]
@@ -170,18 +171,37 @@ async def handle_quark(arguments: dict[str, Any]) -> list[dict[str, Any]]:
 
     # Try Python API first
     try:
+        from quark import config as quark_config
         from quark.report import Report
 
+        rules_dir = getattr(quark_config, "DIR_PATH", None)
+        if not rules_dir or not os.path.isdir(rules_dir):
+            return error_result(
+                "Quark rules not found. Install with: freshquark "
+                "(or clone quark-engine/quark-rules into "
+                "~/.quark-engine/quark-rules/rules)"
+            )
+
         report = Report()
-        report.analysis(str(file_path))
+        report.analysis(str(file_path), rules_dir)
         json_report = report.get_report("json")
 
         if isinstance(json_report, str):
             json_report = json.loads(json_report)
 
-        # Filter by threshold
+        # Filter by threshold (confidence is a string like '85%' in Quark 26.x)
         crimes = json_report.get("crimes", [])
-        filtered = [c for c in crimes if c.get("confidence", 0) >= threshold]
+        filtered = []
+        for c in crimes:
+            conf = c.get("confidence", "0%")
+            if isinstance(conf, str):
+                conf = conf.rstrip("%")
+            try:
+                conf = int(conf)
+            except (TypeError, ValueError):
+                conf = 0
+            if conf >= threshold:
+                filtered.append(c)
 
         return text_result({
             "apk": str(file_path),
